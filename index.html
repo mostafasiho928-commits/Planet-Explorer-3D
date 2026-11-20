@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#07121b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
   <meta name="description" content="مَدار: مستكشف كواكب إجرائي — 150 مليون عالماً قابلاً للاكتشاف">
   <title>مدارات | مستكشف الكواكب</title>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -71,11 +75,6 @@
     #start-button { width: 100%; border: 0; border-radius: 13px; padding: 14px 18px; background: linear-gradient(110deg, #78dce8, #61b8d1); color: #06202b; font: 700 14px Tahoma, Arial, sans-serif; box-shadow: 0 8px 25px rgba(65,177,200,.2); }
     #start-button:active { transform: translateY(1px); }
     .note { display: block; margin-top: 13px; color: #718e99; font-size: 10px; line-height: 1.8; }
-    #rotate-prompt { position: absolute; z-index: 30; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; padding: 24px; text-align: center; background: rgba(2,9,16,.96); }
-    #rotate-prompt .icon { font-size: 46px; animation: rotate 2s ease-in-out infinite; }
-    #rotate-prompt strong { font-size: 17px; }
-    #rotate-prompt span { color: var(--muted); font-size: 12px; line-height: 1.8; }
-    @keyframes rotate { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } }
     #toast { position: absolute; z-index: 12; left: 50%; bottom: 22%; transform: translate(-50%, 10px); opacity: 0; transition: .25s ease; padding: 10px 15px; border-radius: 12px; color: white; background: rgba(5,20,30,.82); border: 1px solid var(--line); font-size: 12px; pointer-events: none; }
     #toast.show { opacity: 1; transform: translate(-50%, 0); }
     @media (pointer: coarse) { #joystick, #actions { display: flex; } #help { display: none; } #status { top: 70px; } }
@@ -90,9 +89,6 @@
       #planet-subtitle { font-size: 8px; }
       #open-planet-map { padding: 7px 8px; font-size: 9px; }
     }
-    @media (orientation: portrait) and (max-width: 900px) {
-      #rotate-prompt { display: flex; }
-    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
 </head>
@@ -101,7 +97,7 @@
     <div id="topbar">
       <div class="brand glass">
         <div class="brand-mark">✦</div>
-        <div class="brand-copy"><strong>مَدار | مستكشف الكواكب</strong><span>مولّد 150 مليون كوكب</span></div>
+        <div class="brand-copy"><strong>مَدار | مستكشف الكواكب</strong><span>عوالم كروية قابلة للاستكشاف</span></div>
       </div>
       <div id="planet-info" class="glass">
         <div class="planet-meta"><strong id="planet-name">...</strong><span id="planet-subtitle">...</span></div>
@@ -117,9 +113,9 @@
       <div class="start-card glass">
         <div class="start-orb">✦</div>
         <h1>مرحباً أيها المستكشف</h1>
-        <p>هناك 150 مليون كوكب يمكن توليدها من أرقامها وبذورها الرقمية. لكل كوكب تضاريس وبيئة وجاذبية ومناخ محدد، ويمكنك العودة إلى أي كوكب باستخدام رقمه.</p>
+        <p>استكشف عالماً كروياً حقيقياً بتضاريس إجرائية ومحيطات وغلاف جوي. هناك 150 مليون كوكب لكل منها بيئته وجاذبيته ومناخه، ويمكنك العودة إلى أي كوكب باستخدام رقمه.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
-        <span class="note">أفضل تجربة على الهاتف عند تدويره أفقياً.<br>تحتاج اللعبة إلى اتصال بالإنترنت لتحميل Three.js من cdnjs.</span>
+        <span class="note">اللعبة مصممة للوضع الأفقي. على Android، استخدم ملء الشاشة أو ثبّت اللعبة من المتصفح لتطبيق قفل الاتجاه.<br>تحتاج اللعبة إلى اتصال بالإنترنت لتحميل Three.js.</span>
       </div>
     </section>
     <section id="planet-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="planet-modal-title">
@@ -134,7 +130,6 @@
         <span class="modal-note">تُولّد خصائص الكواكب عند الطلب ولا تُخزّن 150 مليون نسخة مسبقاً. حفظ آخر كوكب تزوره يتم محلياً على جهازك.</span>
       </div>
     </section>
-    <div id="rotate-prompt"><div class="icon">📱</div><strong>أدر هاتفك أفقياً</strong><span>تم تصميم واجهة اللعب لتعمل بالعرض حتى تحصل على مجال رؤية وتحكم أفضل.</span></div>
   </main>
 
   <script>
@@ -143,9 +138,9 @@
 
     const PLANET_COUNT = 150000000;
     const DEFAULT_PLANET_ID = 20261121;
-    const CHUNK_SIZE = 64;
-    const CHUNK_SEGMENTS = 40;
-    const CHUNK_RADIUS = 2;
+    const PLANET_RADIUS = 170;
+    const PLANET_WIDTH_SEGMENTS = 128;
+    const PLANET_HEIGHT_SEGMENTS = 64;
     const PLAYER_SPEED = 9.2;
     const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -205,58 +200,80 @@
       const atmosphere = 0.12 + random() * 1.28;
       const dayHours = Math.round(8 + random() * 210);
       const offset = (random() - 0.5) * 5;
+      const hasOcean = random() > (biome.climate === "جاف وحار" ? 0.46 : 0.18);
+      const seaLevel = -2.2 + random() * 4.4;
       const name = NAME_A[Math.floor(random() * NAME_A.length)] + NAME_B[Math.floor(random() * NAME_B.length)];
-      return { id, seed, name, biome, temperature, gravityFactor, terrainScale, relief, roughness, ridgeStrength, atmosphere, dayHours, offset };
+      return { id, seed, name, biome, temperature, gravityFactor, terrainScale, relief, roughness, ridgeStrength, atmosphere, dayHours, offset, hasOcean, seaLevel };
     }
 
-    function hash2(x, z, seed) {
-      let h = Math.imul((x | 0) ^ seed, 374761393);
-      h = (h + Math.imul((z | 0) ^ (seed >>> 1), 668265263)) | 0;
-      h = Math.imul(h ^ (h >>> 13), 1274126177);
+    function hash3(x, y, z, seed) {
+      let h = Math.imul(x | 0, 374761393) ^ seed;
+      h = Math.imul(h ^ Math.imul(y | 0, 668265263), 1274126177);
+      h = Math.imul(h ^ Math.imul(z | 0, 2246822519), 3266489917);
+      h ^= h >>> 16;
+      h = Math.imul(h, 0x7feb352d);
+      h ^= h >>> 15;
       return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
     }
-
-    function valueNoise(x, z, seed) {
-      const ix = Math.floor(x), iz = Math.floor(z);
-      const fx = smooth(x - ix), fz = smooth(z - iz);
-      const a = hash2(ix, iz, seed), b = hash2(ix + 1, iz, seed);
-      const c = hash2(ix, iz + 1, seed), d = hash2(ix + 1, iz + 1, seed);
-      const ab = a + (b - a) * fx;
-      const cd = c + (d - c) * fx;
-      return ab + (cd - ab) * fz;
+    function valueNoise3(x, y, z, seed) {
+      const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+      const fx = smooth(x - ix), fy = smooth(y - iy), fz = smooth(z - iz);
+      const a000 = hash3(ix, iy, iz, seed), a100 = hash3(ix + 1, iy, iz, seed);
+      const a010 = hash3(ix, iy + 1, iz, seed), a110 = hash3(ix + 1, iy + 1, iz, seed);
+      const a001 = hash3(ix, iy, iz + 1, seed), a101 = hash3(ix + 1, iy, iz + 1, seed);
+      const a011 = hash3(ix, iy + 1, iz + 1, seed), a111 = hash3(ix + 1, iy + 1, iz + 1, seed);
+      const x00 = a000 + (a100 - a000) * fx, x10 = a010 + (a110 - a010) * fx;
+      const x01 = a001 + (a101 - a001) * fx, x11 = a011 + (a111 - a011) * fx;
+      const y0 = x00 + (x10 - x00) * fy, y1 = x01 + (x11 - x01) * fy;
+      return y0 + (y1 - y0) * fz;
     }
-
-    function fbm(x, z, frequency, seed, octaves = 4) {
+    function fbm3(x, y, z, frequency, seed, octaves = 5) {
       let sum = 0, weight = 0, amplitude = 0.5, freq = frequency;
       for (let i = 0; i < octaves; i++) {
-        sum += valueNoise(x * freq, z * freq, (seed + i * 1013) >>> 0) * amplitude;
-        weight += amplitude;
-        amplitude *= 0.5;
-        freq *= 2;
+        sum += valueNoise3(x * freq, y * freq, z * freq, (seed + i * 1013) >>> 0) * amplitude;
+        weight += amplitude; amplitude *= 0.5; freq *= 2;
       }
       return sum / weight;
-    }
-
-    let currentPlanetId = DEFAULT_PLANET_ID;
+    }    let currentPlanetId = DEFAULT_PLANET_ID;
     try {
       const saved = Number(localStorage.getItem('madar.lastPlanetId'));
       if (Number.isInteger(saved) && saved >= 1 && saved <= PLANET_COUNT) currentPlanetId = saved;
     } catch (_) { /* التخزين المحلي اختياري */ }
     let activePlanet = generatePlanet(currentPlanetId);
 
-    function heightAt(x, z) {
-      const { seed, terrainScale: scale, relief, roughness, ridgeStrength, offset } = activePlanet;
-      const broad = fbm(x, z, 0.008 * scale, seed, 5);
-      const detail = fbm(x + 91, z - 37, 0.036 * scale * roughness, (seed + 71) >>> 0, 3);
-      const ridges = fbm(x - 170, z + 210, 0.0045 * scale, (seed + 313) >>> 0, 3);
+    function terrainHeight(normal) {
+      const p = activePlanet;
+      const broad = fbm3(normal.x, normal.y, normal.z, 3.0 * p.terrainScale, p.seed, 5);
+      const detail = fbm3(normal.x, normal.y, normal.z, 10.5 * p.terrainScale * p.roughness, (p.seed + 71) >>> 0, 3);
+      const ridges = fbm3(normal.x, normal.y, normal.z, 4.8 * p.terrainScale, (p.seed + 313) >>> 0, 4);
       const ridgeShape = Math.pow(1 - Math.abs(ridges - 0.5) * 2, 2.1);
-      return (broad - 0.5) * 22 * relief + ridgeShape * 7.5 * ridgeStrength + (detail - 0.5) * 1.4 * roughness - 1.3 + offset;
+      return (broad - 0.5) * 19 * p.relief + ridgeShape * 5.8 * p.ridgeStrength +
+        (detail - 0.5) * 2.0 * p.roughness - 1.2 + p.offset;
+    }
+    let WORLD_UP, WORLD_X, surfaceNormal, verticalOffset = 0;
+    function surfaceFrame(normal) {
+      const reference = Math.abs(normal.y) < 0.94 ? WORLD_UP : WORLD_X;
+      const east = new THREE.Vector3().crossVectors(reference, normal).normalize();
+      const north = new THREE.Vector3().crossVectors(normal, east).normalize();
+      return { east, north };
+    }
+    function surfacePoint(normal, extra = 0) {
+      return normal.clone().multiplyScalar(PLANET_RADIUS + terrainHeight(normal) + extra);
+    }
+    function orientPlayer(forwardHint) {
+      if (!player) return;
+      const frame = surfaceFrame(surfaceNormal);
+      const forward = forwardHint ? forwardHint.clone() : frame.north.clone();
+      forward.addScaledVector(surfaceNormal, -forward.dot(surfaceNormal)).normalize();
+      if (forward.lengthSq() < 0.0001) forward.copy(frame.north);
+      const right = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
+      const correctedForward = new THREE.Vector3().crossVectors(surfaceNormal, right).normalize();
+      player.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, surfaceNormal, correctedForward));
     }
 
     let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight;
     let player, leftLeg, rightLeg, leftArm, rightArm;
-    let chunks = new Map();
-    let lastChunkX = Infinity, lastChunkZ = Infinity;
+    let planetSurface, oceanMesh, atmosphereMesh;
     let running = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraPitch = 0.38, cameraDistance = 10.5;
@@ -286,7 +303,8 @@
         ['الحرارة', `${planet.temperature}° م`],
         ['الجاذبية', `${gravity} g`],
         ['طول اليوم', `${planet.dayHours} ساعة`],
-        ['الغلاف الجوي', planet.atmosphere.toFixed(2)]
+        ['الغلاف الجوي', planet.atmosphere.toFixed(2)],
+        ['المحيطات', planet.hasOcean ? 'موجودة' : 'عالم جاف']
       ];
     }
 
@@ -310,6 +328,7 @@
         skyUniforms.sunColor.value.setHex(biome.sun);
       }
       if (scene.fog) scene.fog.color.setHex(biome.fog);
+      if (atmosphereMesh) atmosphereMesh.material.color.setHex(biome.horizon);
       if (sunLight) {
         sunLight.color.setHex(biome.sun);
         sunLight.intensity = 1.05 + activePlanet.atmosphere * 0.22;
@@ -404,99 +423,72 @@
       scene.add(hemiLight);
     }
 
-    function terrainColor(height, normalY) {
+    function terrainColor(height, normalDot) {
       const palette = activePlanet.biome;
       const color = new THREE.Color(palette.low);
-      color.lerp(new THREE.Color(palette.mid), clamp((height + 4) / 14, 0, 1));
-      color.lerp(new THREE.Color(palette.high), clamp((height - 8) / 11, 0, 1));
-      if (normalY < 0.86) color.lerp(new THREE.Color(palette.rock), clamp((0.86 - normalY) * 3.2, 0, 1));
+      color.lerp(new THREE.Color(palette.mid), clamp((height + 5) / 16, 0, 1));
+      color.lerp(new THREE.Color(palette.high), clamp((height - 7) / 13, 0, 1));
+      if (normalDot < 0.985) color.lerp(new THREE.Color(palette.rock), clamp((0.985 - normalDot) * 17, 0, 1));
       const snowLine = activePlanet.temperature < -70 ? 5 : 15;
-      if (height > snowLine) color.lerp(new THREE.Color(palette.snow), clamp((height - snowLine) / 8, 0, 1));
+      if (height > snowLine) color.lerp(new THREE.Color(palette.snow), clamp((height - snowLine) / 9, 0, 1));
       return color;
     }
 
-    function buildChunk(cx, cz) {
-      const key = `${cx},${cz}`;
-      const geometry = new THREE.BufferGeometry();
-      const side = CHUNK_SEGMENTS + 1;
-      const positions = new Float32Array(side * side * 3);
-      const colors = new Float32Array(side * side * 3);
-      const indices = [];
-      const startX = cx * CHUNK_SIZE;
-      const startZ = cz * CHUNK_SIZE;
+    function createPlanetSurface() {
+      for (const mesh of [planetSurface, oceanMesh, atmosphereMesh]) {
+        if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
+      }
+      planetSurface = oceanMesh = atmosphereMesh = null;
 
-      for (let iz = 0; iz < side; iz++) {
-        for (let ix = 0; ix < side; ix++) {
-          const x = startX + (ix / CHUNK_SEGMENTS) * CHUNK_SIZE;
-          const z = startZ + (iz / CHUNK_SEGMENTS) * CHUNK_SIZE;
-          const y = heightAt(x, z);
-          const i = (iz * side + ix) * 3;
-          positions[i] = (ix / CHUNK_SEGMENTS) * CHUNK_SIZE;
-          positions[i + 1] = y;
-          positions[i + 2] = (iz / CHUNK_SEGMENTS) * CHUNK_SIZE;
-        }
+      const geometry = new THREE.SphereGeometry(PLANET_RADIUS, PLANET_WIDTH_SEGMENTS, PLANET_HEIGHT_SEGMENTS);
+      const positions = geometry.getAttribute('position');
+      const directions = new Array(positions.count);
+      const heights = new Float32Array(positions.count);
+      const direction = new THREE.Vector3();
+      for (let i = 0; i < positions.count; i++) {
+        direction.fromBufferAttribute(positions, i).normalize();
+        const h = terrainHeight(direction);
+        directions[i] = direction.clone();
+        heights[i] = h;
+        positions.setXYZ(i, direction.x * (PLANET_RADIUS + h), direction.y * (PLANET_RADIUS + h), direction.z * (PLANET_RADIUS + h));
       }
-      for (let iz = 0; iz < CHUNK_SEGMENTS; iz++) {
-        for (let ix = 0; ix < CHUNK_SEGMENTS; ix++) {
-          const a = iz * side + ix;
-          const b = a + 1;
-          const c = a + side;
-          const d = c + 1;
-          indices.push(a, c, b, b, c, d);
-        }
-      }
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geometry.setIndex(indices);
+      positions.needsUpdate = true;
       geometry.computeVertexNormals();
       const normals = geometry.getAttribute('normal');
-      for (let iz = 0; iz < side; iz++) {
-        for (let ix = 0; ix < side; ix++) {
-          const x = startX + (ix / CHUNK_SEGMENTS) * CHUNK_SIZE;
-          const z = startZ + (iz / CHUNK_SEGMENTS) * CHUNK_SIZE;
-          const i = (iz * side + ix);
-          const h = positions[i * 3 + 1];
-          const color = terrainColor(h, normals.getY(i));
-          colors[i * 3] = color.r;
-          colors[i * 3 + 1] = color.g;
-          colors[i * 3 + 2] = color.b;
-        }
+      const colors = new Float32Array(positions.count * 3);
+      for (let i = 0; i < positions.count; i++) {
+        const radial = directions[i];
+        const normalDot = normals.getX(i) * radial.x + normals.getY(i) * radial.y + normals.getZ(i) * radial.z;
+        const color = terrainColor(heights[i], normalDot);
+        colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
       }
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       geometry.computeBoundingSphere();
+      planetSurface = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.94, metalness: 0.02 }));
+      planetSurface.receiveShadow = true;
+      planetSurface.castShadow = true;
+      scene.add(planetSurface);
 
-      const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(startX, 0, startZ);
-      mesh.receiveShadow = true;
-      mesh.castShadow = false;
-      mesh.userData.chunkKey = key;
-      scene.add(mesh);
-      chunks.set(key, mesh);
-    }
-
-    function updateChunks(force = false) {
-      const cx = Math.floor(player.position.x / CHUNK_SIZE);
-      const cz = Math.floor(player.position.z / CHUNK_SIZE);
-      if (!force && cx === lastChunkX && cz === lastChunkZ) return;
-      lastChunkX = cx;
-      lastChunkZ = cz;
-
-      // نحتفظ بالقطع المتقاطعة بين الشبكتين وننشئ الشريط الجديد فقط.
-      for (const [key, mesh] of chunks) {
-        const [mx, mz] = key.split(',').map(Number);
-        if (force || Math.abs(mx - cx) > CHUNK_RADIUS || Math.abs(mz - cz) > CHUNK_RADIUS) {
-          scene.remove(mesh);
-          mesh.geometry.dispose();
-          mesh.material.dispose();
-          chunks.delete(key);
-        }
+      if (activePlanet.hasOcean) {
+        const waterGeometry = new THREE.SphereGeometry(PLANET_RADIUS + activePlanet.seaLevel, 128, 64);
+        const waterMaterial = new THREE.MeshPhongMaterial({
+          color: activePlanet.biome.name === 'صحارى كهرمانية' ? 0x267d9b : 0x167da5,
+          specular: 0x9bdcf0, shininess: 72
+        });
+        oceanMesh = new THREE.Mesh(waterGeometry, waterMaterial);
+        oceanMesh.receiveShadow = true;
+        oceanMesh.renderOrder = 1;
+        scene.add(oceanMesh);
       }
-      for (let z = cz - CHUNK_RADIUS; z <= cz + CHUNK_RADIUS; z++) {
-        for (let x = cx - CHUNK_RADIUS; x <= cx + CHUNK_RADIUS; x++) {
-          const key = `${x},${z}`;
-          if (!chunks.has(key)) buildChunk(x, z);
-        }
-      }
+
+      const atmosphereGeometry = new THREE.SphereGeometry(PLANET_RADIUS + 13, 72, 36);
+      const atmosphereMaterial = new THREE.MeshBasicMaterial({
+        color: activePlanet.biome.horizon, side: THREE.BackSide, transparent: true,
+        opacity: clamp(activePlanet.atmosphere * 0.095, 0.025, 0.16), depthWrite: false
+      });
+      atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+      atmosphereMesh.renderOrder = 2;
+      scene.add(atmosphereMesh);
     }
 
     function addPart(parent, geometry, material, position, scale) {
@@ -556,9 +548,12 @@
 
       player = new THREE.Group();
       player.add(root);
-      player.position.set(0, heightAt(0, 0), 0);
+      surfaceNormal.set(0, 0, 1);
+      verticalOffset = 0;
+      player.position.copy(surfacePoint(surfaceNormal));
       astronaut = root;
       scene.add(player);
+      orientPlayer(null);
       return player;
     }
 
@@ -568,8 +563,11 @@
         showToast('لم يتم تحميل مكتبة الرسوميات');
         return false;
       }
+      WORLD_UP = new THREE.Vector3(0, 1, 0);
+      WORLD_X = new THREE.Vector3(1, 0, 0);
+      surfaceNormal = new THREE.Vector3(0, 0, 1);
       scene = new THREE.Scene();
-      scene.fog = new THREE.Fog(activePlanet.biome.fog, 115, 310);
+      scene.fog = new THREE.Fog(activePlanet.biome.fog, 90, 285);
       camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, .1, 900);
       renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 850 ? 1.2 : 1.5));
@@ -580,25 +578,26 @@
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.08;
       game.insertBefore(renderer.domElement, game.firstChild);
-
       makeSky();
+      createPlanetSurface();
       applyPlanetEnvironment();
       createAstronaut();
-      updateChunks(true);
-      camera.position.set(4, player.position.y + 6, 9);
-      camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
+      camera.position.set(player.position.x + 5, player.position.y + 6, player.position.z + 9);
+      updateCamera(1);
       window.addEventListener('resize', onResize, { passive: true });
+      window.addEventListener('orientationchange', () => setTimeout(onResize, 180), { passive: true });
       bindControls();
-      status.textContent = 'التحرك: WASD أو العصا • تدوير الكاميرا: السحب';
+      status.textContent = 'تحرك فوق سطح الكوكب الكروي • اسحب لتدوير الكاميرا';
       return true;
     }
 
     function onResize() {
       if (!camera || !renderer) return;
-      camera.aspect = window.innerWidth / window.innerHeight;
+      const width = Math.max(1, window.innerWidth), height = Math.max(1, window.innerHeight);
+      camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 850 ? 1.2 : 1.5));
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, width < 850 ? 1.2 : 1.5));
+      renderer.setSize(width, height);
     }
 
     function bindControls() {
@@ -680,87 +679,50 @@
       return { forward, strafe, amount: Math.min(1, length) };
     }
 
-    function tryMove(dx, dz) {
-      const oldX = player.position.x, oldZ = player.position.z;
-      const nextX = oldX + dx, nextZ = oldZ + dz;
-      const oldH = heightAt(oldX, oldZ);
-      const nextH = heightAt(nextX, nextZ);
-      const sample = .65;
-      const hx = heightAt(nextX + sample, nextZ) - heightAt(nextX - sample, nextZ);
-      const hz = heightAt(nextX, nextZ + sample) - heightAt(nextX, nextZ - sample);
-      const slope = Math.hypot(hx, hz) / (sample * 2);
-      if (slope > .92 || Math.abs(nextH - oldH) > .62) return false;
-      player.position.x = nextX;
-      player.position.z = nextZ;
-      if (onGround) player.position.y = nextH;
-      return true;
-    }
-
     function updatePlayer(dt) {
       const input = getMovementInput();
-      const forwardX = -Math.sin(cameraYaw), forwardZ = -Math.cos(cameraYaw);
-      const rightX = Math.cos(cameraYaw), rightZ = -Math.sin(cameraYaw);
-      const dirX = forwardX * input.forward + rightX * input.strafe;
-      const dirZ = forwardZ * input.forward + rightZ * input.strafe;
-      const distance = PLAYER_SPEED * input.amount * dt;
-      if (input.amount > .03 && onGround) {
-        tryMove(dirX * distance, dirZ * distance);
-        astronaut.rotation.y = Math.atan2(dirX, dirZ);
-      } else if (input.amount > .03 && !onGround) {
-        tryMove(dirX * distance * .72, dirZ * distance * .72);
-        astronaut.rotation.y = Math.atan2(dirX, dirZ);
+      const frame = surfaceFrame(surfaceNormal);
+      const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
+      const right = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
+      const direction = forward.clone().multiplyScalar(input.forward).addScaledVector(right, input.strafe);
+      const distance = PLAYER_SPEED * input.amount * dt * (onGround ? 1 : 0.72);
+      if (input.amount > 0.03 && distance > 0) {
+        direction.normalize();
+        const oldNormal = surfaceNormal.clone();
+        const angle = distance / PLANET_RADIUS;
+        const c = Math.cos(angle), s = Math.sin(angle);
+        surfaceNormal.copy(oldNormal).multiplyScalar(c).addScaledVector(direction, s).normalize();
+        const carriedForward = direction.multiplyScalar(c).addScaledVector(oldNormal, -s).normalize();
+        orientPlayer(carriedForward);
       }
-
       verticalVelocity -= BASE_GRAVITY * activePlanet.gravityFactor * dt;
-      player.position.y += verticalVelocity * dt;
-      const ground = heightAt(player.position.x, player.position.z);
-      if (player.position.y <= ground) {
-        player.position.y = ground;
-        verticalVelocity = 0;
-        onGround = true;
-      } else {
-        onGround = false;
-      }
-
+      verticalOffset += verticalVelocity * dt;
+      if (verticalOffset <= 0) { verticalOffset = 0; verticalVelocity = 0; onGround = true; }
+      else onGround = false;
+      player.position.copy(surfacePoint(surfaceNormal, verticalOffset));
       const walk = input.amount > .04 && onGround ? Math.sin(elapsed * 10.5) * .58 * input.amount : 0;
-      leftLeg.rotation.x = walk;
-      rightLeg.rotation.x = -walk;
-      leftArm.rotation.x = -walk * .72;
-      rightArm.rotation.x = walk * .72;
+      leftLeg.rotation.x = walk; rightLeg.rotation.x = -walk;
+      leftArm.rotation.x = -walk * .72; rightArm.rotation.x = walk * .72;
       if (!onGround) {
-        leftLeg.rotation.x = .28;
-        rightLeg.rotation.x = -.18;
-        leftArm.rotation.x = -.35;
-        rightArm.rotation.x = -.35;
+        leftLeg.rotation.x = .28; rightLeg.rotation.x = -.18;
+        leftArm.rotation.x = -.35; rightArm.rotation.x = -.35;
       }
-
-      updateChunks();
-      status.textContent = onGround ? (input.amount > .04 ? 'تستكشف سطح الكوكب…' : 'استكشف التضاريس المحيطة بك') : 'في الهواء…';
+      status.textContent = onGround ? (input.amount > .04 ? 'تستكشف سطح الكوكب…' : 'استكشف العالم الكروي من حولك') : 'تقفز فوق السطح…';
     }
 
     function updateCamera(dt) {
-      const target = new THREE.Vector3(player.position.x, player.position.y + 2.0, player.position.z);
+      const frame = surfaceFrame(surfaceNormal);
+      const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
+      const target = player.position.clone().addScaledVector(surfaceNormal, 2.0);
       const horizontal = Math.cos(cameraPitch) * cameraDistance;
-      const desired = new THREE.Vector3(
-        target.x + Math.sin(cameraYaw) * horizontal,
-        target.y + Math.sin(cameraPitch) * cameraDistance,
-        target.z + Math.cos(cameraYaw) * horizontal
-      );
-      const groundAtCamera = heightAt(desired.x, desired.z) + 1.15;
-      if (desired.y < groundAtCamera) desired.y = groundAtCamera;
+      const desired = target.clone().addScaledVector(forward, -horizontal).addScaledVector(surfaceNormal, Math.sin(cameraPitch) * cameraDistance);
       camera.position.lerp(desired, 1 - Math.exp(-7.5 * dt));
+      camera.up.copy(surfaceNormal);
       camera.lookAt(target);
-
       sky.position.copy(camera.position);
       sunSprite.position.set(camera.position.x - 156, camera.position.y + 204, camera.position.z - 153);
-      sunLight.target.position.set(player.position.x, player.position.y, player.position.z);
-      // تثبيت مركز الظلال على شبكة خفيفة للحد من الاهتزاز.
-      const snap = .22;
-      sunLight.position.set(
-        Math.round((player.position.x - 52) / snap) * snap + 52 - 0.52 * 85,
-        player.position.y + 58,
-        Math.round((player.position.z - 51) / snap) * snap + 51 - 0.51 * 85
-      );
+      sunLight.target.position.copy(player.position);
+      sunLight.position.set(player.position.x - 0.52 * 85, player.position.y + 0.68 * 85, player.position.z - 0.51 * 85);
     }
 
     function animate(now) {
@@ -801,21 +763,17 @@
       try { localStorage.setItem('madar.lastPlanetId', String(id)); } catch (_) { /* التخزين اختياري */ }
       updatePlanetInfo();
       if (scene && player) {
-        // إزالة القطع القديمة بالكامل حتى لا تختلط تضاريس كوكبين مختلفين.
-        for (const mesh of chunks.values()) {
-          scene.remove(mesh);
-          mesh.geometry.dispose();
-          mesh.material.dispose();
-        }
-        chunks.clear();
-        lastChunkX = lastChunkZ = Infinity;
-        player.position.set(0, heightAt(0, 0), 0);
+        createPlanetSurface();
+        surfaceNormal.set(0, 0, 1);
+        verticalOffset = 0;
         verticalVelocity = 0;
         onGround = true;
+        player.position.copy(surfacePoint(surfaceNormal));
         cameraYaw = (activePlanet.seed / 4294967295) * Math.PI * 2;
         cameraPitch = 0.38;
-        updateChunks(true);
+        orientPlayer(null);
         applyPlanetEnvironment();
+        updateCamera(1);
       }
       closePlanetMap();
       showToast(`تم الوصول إلى ${activePlanet.name} · الكوكب ${formatPlanetId(id)}`);
@@ -860,11 +818,18 @@
 
     async function enterFullscreen() {
       try {
-        if (!document.fullscreenElement && game.requestFullscreen) await game.requestFullscreen();
-      } catch (_) { /* ملء الشاشة اختياري حسب المتصفح */ }
+        if (!document.fullscreenElement && game.requestFullscreen) await game.requestFullscreen({ navigationUI: 'hide' });
+      } catch (_) { /* قد يمنع المتصفح ملء الشاشة عند فتح الملف محلياً */ }
+      let locked = false;
       try {
-        if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
-      } catch (_) { /* بعض المتصفحات لا تسمح بقفل الاتجاه */ }
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock('landscape');
+          locked = true;
+        }
+      } catch (_) { /* بعض المتصفحات لا تدعم قفل الاتجاه من صفحة عادية */ }
+      if (!locked && window.matchMedia('(orientation: portrait)').matches) {
+        showToast('للوضع الأفقي التلقائي: افتح اللعبة من GitHub Pages وثبّتها كتطبيق.');
+      }
     }
 
     document.getElementById('start-button').addEventListener('click', async () => {
