@@ -234,7 +234,9 @@
         weight += amplitude; amplitude *= 0.5; freq *= 2;
       }
       return sum / weight;
-    }    let currentPlanetId = DEFAULT_PLANET_ID;
+    }
+
+    let currentPlanetId = DEFAULT_PLANET_ID;
     try {
       const saved = Number(localStorage.getItem('madar.lastPlanetId'));
       if (Number.isInteger(saved) && saved >= 1 && saved <= PLANET_COUNT) currentPlanetId = saved;
