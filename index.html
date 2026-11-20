@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07121b">
+  <meta name="description" content="نموذج أولي للعبة استكشاف كواكب ثلاثية الأبعاد — المرحلة الأولى">
+  <title>مدارات | مستكشف الكواكب</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel: rgba(7, 18, 28, .76);
+      --line: rgba(180, 225, 239, .18);
+      --text: #edf8fb;
+      --muted: #9ab2bd;
+      --cyan: #70d8e8;
+      --gold: #f3c977;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #07121b; }
+    body { font-family: Tahoma, Arial, sans-serif; color: var(--text); user-select: none; -webkit-user-select: none; touch-action: none; }
+    #game { position: fixed; inset: 0; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .glass { background: var(--panel); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0,0,0,.18); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    #topbar { position: absolute; z-index: 5; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); display: flex; align-items: center; justify-content: space-between; gap: 10px; pointer-events: none; }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 9px 13px; border-radius: 15px; }
+    .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: linear-gradient(145deg, rgba(112,216,232,.25), rgba(112,216,232,.06)); color: var(--cyan); font-size: 20px; }
+    .brand-copy { min-width: 0; }
+    .brand-copy strong { display: block; font-size: 13px; letter-spacing: .3px; }
+    .brand-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    #planet-info { display: flex; align-items: center; gap: 12px; padding: 9px 13px; border-radius: 15px; font-size: 11px; color: var(--muted); }
+    #planet-info strong { color: var(--text); font-size: 12px; font-weight: 600; }
+    #status { position: absolute; z-index: 5; top: 76px; left: 50%; transform: translateX(-50%); padding: 8px 13px; border-radius: 12px; color: #d8edf2; font-size: 11px; white-space: nowrap; pointer-events: none; }
+    #help { position: absolute; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); padding: 9px 12px; border-radius: 13px; color: var(--muted); font-size: 10px; line-height: 1.8; pointer-events: none; }
+    #help b { color: #e6f8fb; font-weight: 600; }
+    #joystick { position: absolute; z-index: 8; left: max(24px, env(safe-area-inset-left)); bottom: max(25px, env(safe-area-inset-bottom)); width: 118px; height: 118px; border: 1px solid rgba(220,245,255,.25); border-radius: 50%; background: rgba(5,18,29,.32); box-shadow: inset 0 0 24px rgba(0,0,0,.16); display: none; touch-action: none; }
+    #stick { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: linear-gradient(145deg, rgba(130,225,238,.9), rgba(56,144,169,.82)); border: 1px solid rgba(255,255,255,.45); box-shadow: 0 5px 18px rgba(0,0,0,.28); pointer-events: none; }
+    #actions { position: absolute; z-index: 8; right: max(22px, env(safe-area-inset-right)); bottom: max(25px, env(safe-area-inset-bottom)); display: none; gap: 12px; align-items: flex-end; direction: ltr; }
+    .action { width: 58px; height: 58px; border-radius: 50%; border: 1px solid rgba(230,250,255,.32); background: rgba(7,22,34,.72); color: #effbff; font-size: 23px; box-shadow: 0 8px 18px rgba(0,0,0,.22); backdrop-filter: blur(9px); touch-action: none; }
+    .action:active { transform: scale(.94); background: rgba(67,149,169,.72); }
+    #jump { border-color: rgba(112,216,232,.55); }
+    #start-screen { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; padding: 22px; background: radial-gradient(ellipse at 50% 35%, rgba(13,49,66,.4), rgba(2,9,16,.78)); }
+    .start-card { width: min(430px, 100%); padding: 27px; border-radius: 23px; text-align: center; }
+    .start-orb { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; font-size: 35px; color: #a3eff4; background: radial-gradient(circle at 35% 30%, #a4ebdf, #287d8c 55%, #102b43 78%); box-shadow: 0 0 45px rgba(79,194,211,.23); }
+    .start-card h1 { margin: 0; font-size: 23px; font-weight: 700; }
+    .start-card p { margin: 12px 0 20px; color: var(--muted); font-size: 12px; line-height: 2; }
+    #start-button { width: 100%; border: 0; border-radius: 13px; padding: 14px 18px; background: linear-gradient(110deg, #78dce8, #61b8d1); color: #06202b; font: 700 14px Tahoma, Arial, sans-serif; box-shadow: 0 8px 25px rgba(65,177,200,.2); }
+    #start-button:active { transform: translateY(1px); }
+    .note { display: block; margin-top: 13px; color: #718e99; font-size: 10px; line-height: 1.8; }
+    #rotate-prompt { position: absolute; z-index: 30; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; padding: 24px; text-align: center; background: rgba(2,9,16,.96); }
+    #rotate-prompt .icon { font-size: 46px; animation: rotate 2s ease-in-out infinite; }
+    #rotate-prompt strong { font-size: 17px; }
+    #rotate-prompt span { color: var(--muted); font-size: 12px; line-height: 1.8; }
+    @keyframes rotate { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } }
+    #toast { position: absolute; z-index: 12; left: 50%; bottom: 22%; transform: translate(-50%, 10px); opacity: 0; transition: .25s ease; padding: 10px 15px; border-radius: 12px; color: white; background: rgba(5,20,30,.82); border: 1px solid var(--line); font-size: 12px; pointer-events: none; }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (pointer: coarse) { #joystick, #actions { display: flex; } #help { display: none; } #status { top: 70px; } }
+    @media (max-width: 620px) {
+      #topbar { gap: 6px; }
+      .brand { padding: 7px 9px; gap: 7px; }
+      .brand-mark { width: 29px; height: 29px; font-size: 17px; }
+      .brand-copy strong { font-size: 11px; }
+      .brand-copy span { font-size: 9px; }
+      #planet-info { gap: 6px; padding: 8px 9px; font-size: 9px; }
+      #planet-info strong { font-size: 10px; }
+    }
+    @media (orientation: portrait) and (max-width: 900px) {
+      #rotate-prompt { display: flex; }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+</head>
+<body>
+  <main id="game" aria-label="لعبة استكشاف كوكب ثلاثي الأبعاد">
+    <div id="topbar">
+      <div class="brand glass">
+        <div class="brand-mark">✦</div>
+        <div class="brand-copy"><strong>مَدار | مستكشف الكواكب</strong><span>نموذج أولي — المرحلة الأولى</span></div>
+      </div>
+      <div id="planet-info" class="glass"><span>المنطقة</span><strong>سهول أوريون</strong><span>•</span><span>تجريبي</span></div>
+    </div>
+    <div id="status" class="glass">استكشف التضاريس المحيطة بك</div>
+    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Space</b> للقفز<br><b>اسحب</b> لتدوير الكاميرا · <b>Esc</b> لإيقاف ملء الشاشة</div>
+    <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
+    <div id="actions"><button class="action" id="jump" aria-label="قفز">↑</button></div>
+    <div id="toast"></div>
+    <section id="start-screen">
+      <div class="start-card glass">
+        <div class="start-orb">✦</div>
+        <h1>مرحباً أيها المستكشف</h1>
+        <p>أنت على سطح كوكب تجريبي. تحرّك بين التلال، اقفز، ودر بالكاميرا حول رائد الفضاء. هذه هي النواة الأولى لعالم الاستكشاف.</p>
+        <button id="start-button">ابدأ الاستكشاف</button>
+        <span class="note">أفضل تجربة على الهاتف عند تدويره أفقياً.<br>تحتاج اللعبة إلى اتصال بالإنترنت لتحميل Three.js من cdnjs.</span>
+      </div>
+    </section>
+    <div id="rotate-prompt"><div class="icon">📱</div><strong>أدر هاتفك أفقياً</strong><span>تم تصميم واجهة اللعب لتعمل بالعرض حتى تحصل على مجال رؤية وتحكم أفضل.</span></div>
+  </main>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const SEED = 20261121;
+    const CHUNK_SIZE = 64;
+    const CHUNK_SEGMENTS = 40;
+    const CHUNK_RADIUS = 2;
+    const PLAYER_SPEED = 9.2;
+    const GRAVITY = 24;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const smooth = t => t * t * (3 - 2 * t);
+
+    // Hash مرتبط بالإحداثيات: يعطي النتيجة نفسها بغض النظر عن ترتيب تحميل المناطق.
+    function hash2(x, z, seed = SEED) {
+      let h = Math.imul((x | 0) ^ seed, 374761393);
+      h = (h + Math.imul((z | 0) ^ (seed >>> 1), 668265263)) | 0;
+      h = Math.imul(h ^ (h >>> 13), 1274126177);
+      return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+    }
+
+    function valueNoise(x, z, seed = SEED) {
+      const ix = Math.floor(x), iz = Math.floor(z);
+      const fx = smooth(x - ix), fz = smooth(z - iz);
+      const a = hash2(ix, iz, seed), b = hash2(ix + 1, iz, seed);
+      const c = hash2(ix, iz + 1, seed), d = hash2(ix + 1, iz + 1, seed);
+      const ab = a + (b - a) * fx;
+      const cd = c + (d - c) * fx;
+      return ab + (cd - ab) * fz;
+    }
+
+    function fbm(x, z, frequency, seed = SEED, octaves = 4) {
+      let sum = 0, weight = 0, amplitude = 0.5, freq = frequency;
+      for (let i = 0; i < octaves; i++) {
+        sum += valueNoise(x * freq, z * freq, seed + i * 1013) * amplitude;
+        weight += amplitude;
+        amplitude *= 0.5;
+        freq *= 2;
+      }
+      return sum / weight;
+    }
+
+    function heightAt(x, z) {
+      const broad = fbm(x, z, 0.008, SEED, 5);
+      const detail = fbm(x + 91, z - 37, 0.036, SEED + 71, 3);
+      const ridges = fbm(x - 170, z + 210, 0.0045, SEED + 313, 3);
+      const ridgeShape = Math.pow(1 - Math.abs(ridges - 0.5) * 2, 2.1);
+      return (broad - 0.5) * 22 + ridgeShape * 7.5 + (detail - 0.5) * 1.4 - 1.3;
+    }
+
+    let scene, camera, renderer, sky, sunSprite, sunLight, astronaut;
+    let player, leftLeg, rightLeg, leftArm, rightArm;
+    let chunks = new Map();
+    let lastChunkX = Infinity, lastChunkZ = Infinity;
+    let running = false, lastTime = 0, elapsed = 0;
+    let verticalVelocity = 0, onGround = true;
+    let cameraYaw = 0.25, cameraPitch = 0.38, cameraDistance = 10.5;
+    let joystickPointer = null, cameraPointer = null;
+    let moveInput = { x: 0, y: 0 };
+    const keys = new Set();
+    let toastTimer = 0;
+
+    const game = document.getElementById('game');
+    const status = document.getElementById('status');
+    const toast = document.getElementById('toast');
+    const startScreen = document.getElementById('start-screen');
+    const joystick = document.getElementById('joystick');
+    const stick = document.getElementById('stick');
+    const jumpButton = document.getElementById('jump');
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1700);
+    }
+
+    function makeSky() {
+      const uniforms = {
+        topColor: { value: new THREE.Color(0x153b59) },
+        horizonColor: { value: new THREE.Color(0xa6c9c5) },
+        sunDirection: { value: new THREE.Vector3(-0.52, 0.68, -0.51).normalize() },
+        sunColor: { value: new THREE.Color(0xffd8a0) }
+      };
+      const material = new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader: `
+          varying vec3 vDirection;
+          void main() {
+            vDirection = normalize(position);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 topColor;
+          uniform vec3 horizonColor;
+          uniform vec3 sunDirection;
+          uniform vec3 sunColor;
+          varying vec3 vDirection;
+          void main() {
+            vec3 dir = normalize(vDirection);
+            float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+            float gradient = smoothstep(0.22, 0.88, h);
+            vec3 col = mix(horizonColor, topColor, gradient);
+            float sun = max(dot(dir, normalize(sunDirection)), 0.0);
+            col += sunColor * pow(sun, 90.0) * 1.35;
+            col += sunColor * pow(sun, 9.0) * 0.12;
+            gl_FragColor = vec4(col, 1.0);
+          }
+        `,
+        side: THREE.BackSide,
+        depthWrite: false
+      });
+      sky = new THREE.Mesh(new THREE.SphereGeometry(700, 32, 18), material);
+      sky.frustumCulled = false;
+      scene.add(sky);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createRadialGradient(64, 64, 2, 64, 64, 62);
+      gradient.addColorStop(0, 'rgba(255,250,222,1)');
+      gradient.addColorStop(.16, 'rgba(255,222,157,.95)');
+      gradient.addColorStop(.42, 'rgba(255,183,105,.34)');
+      gradient.addColorStop(1, 'rgba(255,165,90,0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 128, 128);
+      const texture = new THREE.CanvasTexture(canvas);
+      sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      sunSprite.position.set(-220, 290, -215);
+      sunSprite.scale.set(100, 100, 1);
+      scene.add(sunSprite);
+
+      const sunDir = uniforms.sunDirection.value;
+      sunLight = new THREE.DirectionalLight(0xffe2bd, 1.35);
+      sunLight.position.copy(sunDir).multiplyScalar(85);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.set(window.innerWidth < 850 ? 1024 : 2048, window.innerWidth < 850 ? 1024 : 2048);
+      sunLight.shadow.camera.left = -62;
+      sunLight.shadow.camera.right = 62;
+      sunLight.shadow.camera.top = 62;
+      sunLight.shadow.camera.bottom = -62;
+      sunLight.shadow.camera.near = 1;
+      sunLight.shadow.camera.far = 170;
+      sunLight.shadow.bias = -0.00025;
+      sunLight.shadow.normalBias = 0.025;
+      sunLight.shadow.radius = 3;
+      scene.add(sunLight);
+      scene.add(sunLight.target);
+      scene.add(new THREE.HemisphereLight(0xc8e8ff, 0x526044, 0.72));
+    }
+
+    function terrainColor(height, normalY) {
+      const grassLow = new THREE.Color(0x667d4b);
+      const grass = new THREE.Color(0x789957);
+      const highGrass = new THREE.Color(0x9ba96b);
+      const rock = new THREE.Color(0x77796f);
+      const snow = new THREE.Color(0xe6e9e2);
+      const color = grassLow.clone();
+      if (height > -2) color.lerp(grass, clamp((height + 2) / 8, 0, 1));
+      if (height > 7) color.lerp(highGrass, clamp((height - 7) / 5, 0, 1));
+      if (normalY < 0.86) color.lerp(rock, clamp((0.86 - normalY) * 3.2, 0, 1));
+      if (height > 14) color.lerp(snow, clamp((height - 14) / 5, 0, 1));
+      return color;
+    }
+
+    function buildChunk(cx, cz) {
+      const key = `${cx},${cz}`;
+      const geometry = new THREE.BufferGeometry();
+      const side = CHUNK_SEGMENTS + 1;
+      const positions = new Float32Array(side * side * 3);
+      const colors = new Float32Array(side * side * 3);
+      const indices = [];
+      const startX = cx * CHUNK_SIZE;
+      const startZ = cz * CHUNK_SIZE;
+
+      for (let iz = 0; iz < side; iz++) {
+        for (let ix = 0; ix < side; ix++) {
+          const x = startX + (ix / CHUNK_SEGMENTS) * CHUNK_SIZE;
+          const z = startZ + (iz / CHUNK_SEGMENTS) * CHUNK_SIZE;
+          const y = heightAt(x, z);
+          const i = (iz * side + ix) * 3;
+          positions[i] = (ix / CHUNK_SEGMENTS) * CHUNK_SIZE;
+          positions[i + 1] = y;
+          positions[i + 2] = (iz / CHUNK_SEGMENTS) * CHUNK_SIZE;
+        }
+      }
+      for (let iz = 0; iz < CHUNK_SEGMENTS; iz++) {
+        for (let ix = 0; ix < CHUNK_SEGMENTS; ix++) {
+          const a = iz * side + ix;
+          const b = a + 1;
+          const c = a + side;
+          const d = c + 1;
+          indices.push(a, c, b, b, c, d);
+        }
+      }
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      const normals = geometry.getAttribute('normal');
+      for (let iz = 0; iz < side; iz++) {
+        for (let ix = 0; ix < side; ix++) {
+          const x = startX + (ix / CHUNK_SEGMENTS) * CHUNK_SIZE;
+          const z = startZ + (iz / CHUNK_SEGMENTS) * CHUNK_SIZE;
+          const i = (iz * side + ix);
+          const h = positions[i * 3 + 1];
+          const color = terrainColor(h, normals.getY(i));
+          colors[i * 3] = color.r;
+          colors[i * 3 + 1] = color.g;
+          colors[i * 3 + 2] = color.b;
+        }
+      }
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geometry.computeBoundingSphere();
+
+      const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(startX, 0, startZ);
+      mesh.receiveShadow = true;
+      mesh.castShadow = false;
+      mesh.userData.chunkKey = key;
+      scene.add(mesh);
+      chunks.set(key, mesh);
+    }
+
+    function updateChunks(force = false) {
+      const cx = Math.floor(player.position.x / CHUNK_SIZE);
+      const cz = Math.floor(player.position.z / CHUNK_SIZE);
+      if (!force && cx === lastChunkX && cz === lastChunkZ) return;
+      lastChunkX = cx;
+      lastChunkZ = cz;
+
+      // نحتفظ بالقطع المتقاطعة بين الشبكتين وننشئ الشريط الجديد فقط.
+      for (const [key, mesh] of chunks) {
+        const [mx, mz] = key.split(',').map(Number);
+        if (force || Math.abs(mx - cx) > CHUNK_RADIUS || Math.abs(mz - cz) > CHUNK_RADIUS) {
+          scene.remove(mesh);
+          mesh.geometry.dispose();
+          mesh.material.dispose();
+          chunks.delete(key);
+        }
+      }
+      for (let z = cz - CHUNK_RADIUS; z <= cz + CHUNK_RADIUS; z++) {
+        for (let x = cx - CHUNK_RADIUS; x <= cx + CHUNK_RADIUS; x++) {
+          const key = `${x},${z}`;
+          if (!chunks.has(key)) buildChunk(x, z);
+        }
+      }
+    }
+
+    function addPart(parent, geometry, material, position, scale) {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(position[0], position[1], position[2]);
+      if (scale) mesh.scale.set(scale[0], scale[1], scale[2]);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      return mesh;
+    }
+
+    function createAstronaut() {
+      const root = new THREE.Group();
+      const white = new THREE.MeshStandardMaterial({ color: 0xe5edf0, roughness: .72, metalness: .08 });
+      const whiteShade = new THREE.MeshStandardMaterial({ color: 0xb8cbd1, roughness: .8 });
+      const dark = new THREE.MeshStandardMaterial({ color: 0x172d3a, roughness: .58, metalness: .2 });
+      const visor = new THREE.MeshStandardMaterial({ color: 0x2c9eb8, roughness: .22, metalness: .5, emissive: 0x082b3c, emissiveIntensity: .45 });
+      const cyan = new THREE.MeshStandardMaterial({ color: 0x77e2e9, roughness: .35, metalness: .2 });
+      const boot = new THREE.MeshStandardMaterial({ color: 0x263d49, roughness: .85 });
+
+      addPart(root, new THREE.BoxGeometry(.68, .82, .36), whiteShade, [0, 1.42, -.43]);
+      addPart(root, new THREE.BoxGeometry(.52, .62, .08), white, [0, 1.43, -.64]);
+      addPart(root, new THREE.BoxGeometry(.2, .52, .12), cyan, [0, 1.45, -.70]);
+      addPart(root, new THREE.CylinderGeometry(.43, .48, 1.03, 12), white, [0, 1.22, 0]);
+      addPart(root, new THREE.SphereGeometry(.39, 18, 14), white, [0, 2.02, .02], [1, .98, .94]);
+      addPart(root, new THREE.SphereGeometry(.315, 18, 14), dark, [0, 2.04, .285], [1, .78, .36]);
+      addPart(root, new THREE.SphereGeometry(.285, 18, 14), visor, [0, 2.06, .315], [.98, .72, .32]);
+      addPart(root, new THREE.BoxGeometry(.18, .045, .04), cyan, [0, 2.36, .18]);
+
+      const makeArm = (side) => {
+        const pivot = new THREE.Group();
+        pivot.position.set(side * .48, 1.62, 0);
+        root.add(pivot);
+        addPart(pivot, new THREE.SphereGeometry(.19, 12, 10), whiteShade, [side * .06, -.05, 0]);
+        addPart(pivot, new THREE.CylinderGeometry(.135, .16, .55, 10), white, [side * .08, -.34, 0]);
+        addPart(pivot, new THREE.SphereGeometry(.145, 10, 8), whiteShade, [side * .08, -.64, .015]);
+        addPart(pivot, new THREE.CylinderGeometry(.12, .13, .32, 10), white, [side * .08, -.79, .02]);
+        addPart(pivot, new THREE.SphereGeometry(.13, 10, 8), dark, [side * .08, -.97, .035], [1, .8, .8]);
+        return pivot;
+      };
+      leftArm = makeArm(-1);
+      rightArm = makeArm(1);
+
+      const makeLeg = (side) => {
+        const pivot = new THREE.Group();
+        pivot.position.set(side * .23, .78, 0);
+        root.add(pivot);
+        addPart(pivot, new THREE.CylinderGeometry(.19, .16, .52, 10), white, [0, -.25, 0]);
+        addPart(pivot, new THREE.SphereGeometry(.17, 10, 8), whiteShade, [0, -.53, 0]);
+        addPart(pivot, new THREE.BoxGeometry(.32, .2, .48), boot, [0, -.66, .1]);
+        addPart(pivot, new THREE.BoxGeometry(.27, .045, .34), cyan, [0, -.56, .1]);
+        return pivot;
+      };
+      leftLeg = makeLeg(-1);
+      rightLeg = makeLeg(1);
+
+      player = new THREE.Group();
+      player.add(root);
+      player.position.set(0, heightAt(0, 0), 0);
+      astronaut = root;
+      scene.add(player);
+      return player;
+    }
+
+    function init() {
+      if (!window.THREE) {
+        status.textContent = 'تعذر تحميل Three.js. تحقق من اتصال الإنترنت ثم أعد تحميل الصفحة.';
+        showToast('لم يتم تحميل مكتبة الرسوميات');
+        return false;
+      }
+      scene = new THREE.Scene();
+      scene.fog = new THREE.Fog(0x9dbeb7, 115, 310);
+      camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, .1, 900);
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 850 ? 1.2 : 1.5));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.08;
+      game.insertBefore(renderer.domElement, game.firstChild);
+
+      makeSky();
+      createAstronaut();
+      updateChunks(true);
+      camera.position.set(4, player.position.y + 6, 9);
+      camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
+      window.addEventListener('resize', onResize, { passive: true });
+      bindControls();
+      status.textContent = 'التحرك: WASD أو العصا • تدوير الكاميرا: السحب';
+      return true;
+    }
+
+    function onResize() {
+      if (!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 850 ? 1.2 : 1.5));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function bindControls() {
+      window.addEventListener('keydown', e => {
+        if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+        keys.add(e.key.toLowerCase());
+        if (e.code === 'Space' && running) jump();
+      }, { passive: false });
+      window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+      window.addEventListener('blur', () => keys.clear());
+
+      renderer.domElement.addEventListener('pointerdown', e => {
+        if (!running || e.pointerType === 'mouse' && e.button !== 0) return;
+        cameraPointer = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        renderer.domElement.setPointerCapture(e.pointerId);
+      });
+      renderer.domElement.addEventListener('pointermove', e => {
+        if (!cameraPointer || cameraPointer.id !== e.pointerId) return;
+        const dx = e.clientX - cameraPointer.x;
+        const dy = e.clientY - cameraPointer.y;
+        cameraPointer.x = e.clientX;
+        cameraPointer.y = e.clientY;
+        cameraYaw -= dx * .006;
+        cameraPitch = clamp(cameraPitch + dy * .004, .10, 1.28);
+      });
+      const endCamera = e => { if (cameraPointer && cameraPointer.id === e.pointerId) cameraPointer = null; };
+      renderer.domElement.addEventListener('pointerup', endCamera);
+      renderer.domElement.addEventListener('pointercancel', endCamera);
+
+      joystick.addEventListener('pointerdown', e => {
+        if (!running) return;
+        e.preventDefault();
+        joystickPointer = e.pointerId;
+        joystick.setPointerCapture(e.pointerId);
+        updateJoystick(e);
+      });
+      joystick.addEventListener('pointermove', e => {
+        if (joystickPointer === e.pointerId) updateJoystick(e);
+      });
+      const endStick = e => {
+        if (joystickPointer !== e.pointerId) return;
+        joystickPointer = null;
+        moveInput.x = moveInput.y = 0;
+        stick.style.transform = 'translate(0,0)';
+      };
+      joystick.addEventListener('pointerup', endStick);
+      joystick.addEventListener('pointercancel', endStick);
+      jumpButton.addEventListener('pointerdown', e => { e.preventDefault(); if (running) jump(); });
+    }
+
+    function updateJoystick(e) {
+      const rect = joystick.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      let dx = e.clientX - centerX, dy = e.clientY - centerY;
+      const max = 36, length = Math.hypot(dx, dy);
+      if (length > max) { dx = dx / length * max; dy = dy / length * max; }
+      moveInput.x = dx / max;
+      moveInput.y = dy / max;
+      stick.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+
+    function jump() {
+      if (!onGround) return;
+      verticalVelocity = 10.2;
+      onGround = false;
+    }
+
+    function getMovementInput() {
+      let forward = 0, strafe = 0;
+      if (keys.has('w') || keys.has('arrowup')) forward += 1;
+      if (keys.has('s') || keys.has('arrowdown')) forward -= 1;
+      if (keys.has('d') || keys.has('arrowright')) strafe += 1;
+      if (keys.has('a') || keys.has('arrowleft')) strafe -= 1;
+      forward += -moveInput.y;
+      strafe += moveInput.x;
+      const length = Math.hypot(forward, strafe);
+      if (length > 1) { forward /= length; strafe /= length; }
+      return { forward, strafe, amount: Math.min(1, length) };
+    }
+
+    function tryMove(dx, dz) {
+      const oldX = player.position.x, oldZ = player.position.z;
+      const nextX = oldX + dx, nextZ = oldZ + dz;
+      const oldH = heightAt(oldX, oldZ);
+      const nextH = heightAt(nextX, nextZ);
+      const sample = .65;
+      const hx = heightAt(nextX + sample, nextZ) - heightAt(nextX - sample, nextZ);
+      const hz = heightAt(nextX, nextZ + sample) - heightAt(nextX, nextZ - sample);
+      const slope = Math.hypot(hx, hz) / (sample * 2);
+      if (slope > .92 || Math.abs(nextH - oldH) > .62) return false;
+      player.position.x = nextX;
+      player.position.z = nextZ;
+      if (onGround) player.position.y = nextH;
+      return true;
+    }
+
+    function updatePlayer(dt) {
+      const input = getMovementInput();
+      const forwardX = -Math.sin(cameraYaw), forwardZ = -Math.cos(cameraYaw);
+      const rightX = Math.cos(cameraYaw), rightZ = -Math.sin(cameraYaw);
+      const dirX = forwardX * input.forward + rightX * input.strafe;
+      const dirZ = forwardZ * input.forward + rightZ * input.strafe;
+      const distance = PLAYER_SPEED * input.amount * dt;
+      if (input.amount > .03 && onGround) {
+        tryMove(dirX * distance, dirZ * distance);
+        astronaut.rotation.y = Math.atan2(dirX, dirZ);
+      } else if (input.amount > .03 && !onGround) {
+        tryMove(dirX * distance * .72, dirZ * distance * .72);
+        astronaut.rotation.y = Math.atan2(dirX, dirZ);
+      }
+
+      verticalVelocity -= GRAVITY * dt;
+      player.position.y += verticalVelocity * dt;
+      const ground = heightAt(player.position.x, player.position.z);
+      if (player.position.y <= ground) {
+        player.position.y = ground;
+        verticalVelocity = 0;
+        onGround = true;
+      } else {
+        onGround = false;
+      }
+
+      const walk = input.amount > .04 && onGround ? Math.sin(elapsed * 10.5) * .58 * input.amount : 0;
+      leftLeg.rotation.x = walk;
+      rightLeg.rotation.x = -walk;
+      leftArm.rotation.x = -walk * .72;
+      rightArm.rotation.x = walk * .72;
+      if (!onGround) {
+        leftLeg.rotation.x = .28;
+        rightLeg.rotation.x = -.18;
+        leftArm.rotation.x = -.35;
+        rightArm.rotation.x = -.35;
+      }
+
+      updateChunks();
+      status.textContent = onGround ? (input.amount > .04 ? 'تستكشف سطح الكوكب…' : 'استكشف التضاريس المحيطة بك') : 'في الهواء…';
+    }
+
+    function updateCamera(dt) {
+      const target = new THREE.Vector3(player.position.x, player.position.y + 2.0, player.position.z);
+      const horizontal = Math.cos(cameraPitch) * cameraDistance;
+      const desired = new THREE.Vector3(
+        target.x + Math.sin(cameraYaw) * horizontal,
+        target.y + Math.sin(cameraPitch) * cameraDistance,
+        target.z + Math.cos(cameraYaw) * horizontal
+      );
+      const groundAtCamera = heightAt(desired.x, desired.z) + 1.15;
+      if (desired.y < groundAtCamera) desired.y = groundAtCamera;
+      camera.position.lerp(desired, 1 - Math.exp(-7.5 * dt));
+      camera.lookAt(target);
+
+      sky.position.copy(camera.position);
+      sunSprite.position.set(camera.position.x - 156, camera.position.y + 204, camera.position.z - 153);
+      sunLight.target.position.set(player.position.x, player.position.y, player.position.z);
+      // تثبيت مركز الظلال على شبكة خفيفة للحد من الاهتزاز.
+      const snap = .22;
+      sunLight.position.set(
+        Math.round((player.position.x - 52) / snap) * snap + 52 - 0.52 * 85,
+        player.position.y + 58,
+        Math.round((player.position.z - 51) / snap) * snap + 51 - 0.51 * 85
+      );
+    }
+
+    function animate(now) {
+      if (!running) return;
+      requestAnimationFrame(animate);
+      const dt = Math.min((now - lastTime) / 1000 || 0, .04);
+      lastTime = now;
+      elapsed += dt;
+      updatePlayer(dt);
+      updateCamera(dt);
+      renderer.render(scene, camera);
+    }
+
+    async function enterFullscreen() {
+      try {
+        if (!document.fullscreenElement && game.requestFullscreen) await game.requestFullscreen();
+      } catch (_) { /* ملء الشاشة اختياري حسب المتصفح */ }
+      try {
+        if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
+      } catch (_) { /* بعض المتصفحات لا تسمح بقفل الاتجاه */ }
+    }
+
+    document.getElementById('start-button').addEventListener('click', async () => {
+      if (!scene && !init()) return;
+      await enterFullscreen();
+      startScreen.style.display = 'none';
+      running = true;
+      lastTime = performance.now();
+      requestAnimationFrame(animate);
+      showToast('أهلاً بك على سطح أوريون');
+    });
+
+    // لا تُنشأ الرسوميات قبل ضغط ابدأ، لتفادي تشغيل WebGL قبل تفاعل المستخدم.
+  })();
+  </script>
+</body>
+</html>
