@@ -41,7 +41,7 @@
     #open-planet-map:active { transform: scale(.96); }
     .modal { position: absolute; z-index: 18; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(1,8,14,.72); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); }
     .modal.hidden { display: none; }
-    .modal-card { width: min(440px, 100%); padding: 21px; border-radius: 21px; }
+    .modal-card { width: min(440px, 100%); max-height: calc(100% - 12px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 21px; border-radius: 21px; }
     .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .modal-head h2 { margin: 0; font-size: 18px; }
     #close-planet-map { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.06); color: var(--text); font-size: 20px; }
@@ -259,6 +259,25 @@
     }
     function surfacePoint(normal, extra = 0) {
       return normal.clone().multiplyScalar(PLANET_RADIUS + terrainHeight(normal) + extra);
+    }
+    function findSpawnNormal() {
+      let best = new THREE.Vector3(0, 0, 1);
+      let bestHeight = -Infinity;
+      const samples = 192;
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+      for (let i = 0; i < samples; i++) {
+        const y = 1 - 2 * (i + 0.5) / samples;
+        const ring = Math.sqrt(Math.max(0, 1 - y * y));
+        const angle = i * goldenAngle;
+        const candidate = new THREE.Vector3(Math.cos(angle) * ring, y, Math.sin(angle) * ring);
+        const h = terrainHeight(candidate);
+        const aboveWater = !activePlanet.hasOcean || h > activePlanet.seaLevel + 0.8;
+        if (aboveWater && h > bestHeight) {
+          bestHeight = h;
+          best.copy(candidate);
+        }
+      }
+      return best;
     }
     function orientPlayer(forwardHint) {
       if (!player) return;
@@ -548,7 +567,7 @@
 
       player = new THREE.Group();
       player.add(root);
-      surfaceNormal.set(0, 0, 1);
+      surfaceNormal.copy(findSpawnNormal());
       verticalOffset = 0;
       player.position.copy(surfacePoint(surfaceNormal));
       astronaut = root;
@@ -764,7 +783,7 @@
       updatePlanetInfo();
       if (scene && player) {
         createPlanetSurface();
-        surfaceNormal.set(0, 0, 1);
+        surfaceNormal.copy(findSpawnNormal());
         verticalOffset = 0;
         verticalVelocity = 0;
         onGround = true;
