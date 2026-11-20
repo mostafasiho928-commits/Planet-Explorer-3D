@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#07121b">
-  <meta name="description" content="نموذج أولي للعبة استكشاف كواكب ثلاثية الأبعاد — المرحلة الأولى">
+  <meta name="description" content="مَدار: مستكشف كواكب إجرائي — 150 مليون عالماً قابلاً للاكتشاف">
   <title>مدارات | مستكشف الكواكب</title>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <style>
@@ -29,8 +29,31 @@
     .brand-copy { min-width: 0; }
     .brand-copy strong { display: block; font-size: 13px; letter-spacing: .3px; }
     .brand-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
-    #planet-info { display: flex; align-items: center; gap: 12px; padding: 9px 13px; border-radius: 15px; font-size: 11px; color: var(--muted); }
-    #planet-info strong { color: var(--text); font-size: 12px; font-weight: 600; }
+    #planet-info { display: flex; align-items: center; gap: 12px; padding: 8px 11px; border-radius: 15px; font-size: 11px; color: var(--muted); pointer-events: auto; }
+    .planet-meta { min-width: 0; }
+    #planet-name { display: block; color: var(--text); font-size: 12px; font-weight: 600; white-space: nowrap; }
+    #planet-subtitle { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; white-space: nowrap; }
+    #open-planet-map { border: 1px solid rgba(112,216,232,.34); border-radius: 10px; padding: 8px 10px; color: #dffaff; background: rgba(63,150,171,.2); font: 600 10px Tahoma, Arial, sans-serif; white-space: nowrap; }
+    #open-planet-map:active { transform: scale(.96); }
+    .modal { position: absolute; z-index: 18; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(1,8,14,.72); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); }
+    .modal.hidden { display: none; }
+    .modal-card { width: min(440px, 100%); padding: 21px; border-radius: 21px; }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .modal-head h2 { margin: 0; font-size: 18px; }
+    #close-planet-map { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.06); color: var(--text); font-size: 20px; }
+    .modal-intro { margin: 12px 0 18px; color: var(--muted); font-size: 11px; line-height: 1.9; }
+    .modal-intro strong { color: var(--cyan); }
+    .field-label { display: block; color: #d9edf3; font-size: 11px; }
+    #planet-id-input { display: block; width: 100%; margin-top: 8px; padding: 13px 14px; border: 1px solid rgba(112,216,232,.32); border-radius: 12px; outline: none; background: rgba(1,10,17,.62); color: var(--text); font: 700 17px Tahoma, Arial, sans-serif; direction: ltr; text-align: left; }
+    #planet-id-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(112,216,232,.1); }
+    #planet-preview { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; margin: 14px 0; }
+    .stat { padding: 10px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.035); min-width: 0; }
+    .stat span { display: block; color: var(--muted); font-size: 9px; }
+    .stat strong { display: block; margin-top: 5px; color: var(--text); font-size: 12px; overflow-wrap: anywhere; }
+    .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .modal-actions button { min-height: 43px; border: 1px solid rgba(112,216,232,.32); border-radius: 12px; background: rgba(67,149,169,.18); color: #e9fbff; font: 700 11px Tahoma, Arial, sans-serif; }
+    #travel-planet { background: linear-gradient(110deg,#78dce8,#61b8d1); color: #06202b; border: 0; }
+    .modal-note { display: block; margin-top: 13px; color: #718e99; font-size: 9px; line-height: 1.8; }
     #status { position: absolute; z-index: 5; top: 76px; left: 50%; transform: translateX(-50%); padding: 8px 13px; border-radius: 12px; color: #d8edf2; font-size: 11px; white-space: nowrap; pointer-events: none; }
     #help { position: absolute; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); padding: 9px 12px; border-radius: 13px; color: var(--muted); font-size: 10px; line-height: 1.8; pointer-events: none; }
     #help b { color: #e6f8fb; font-weight: 600; }
@@ -62,8 +85,10 @@
       .brand-mark { width: 29px; height: 29px; font-size: 17px; }
       .brand-copy strong { font-size: 11px; }
       .brand-copy span { font-size: 9px; }
-      #planet-info { gap: 6px; padding: 8px 9px; font-size: 9px; }
-      #planet-info strong { font-size: 10px; }
+      #planet-info { gap: 7px; padding: 7px 8px; }
+      #planet-name { font-size: 10px; }
+      #planet-subtitle { font-size: 8px; }
+      #open-planet-map { padding: 7px 8px; font-size: 9px; }
     }
     @media (orientation: portrait) and (max-width: 900px) {
       #rotate-prompt { display: flex; }
@@ -76,9 +101,12 @@
     <div id="topbar">
       <div class="brand glass">
         <div class="brand-mark">✦</div>
-        <div class="brand-copy"><strong>مَدار | مستكشف الكواكب</strong><span>نموذج أولي — المرحلة الأولى</span></div>
+        <div class="brand-copy"><strong>مَدار | مستكشف الكواكب</strong><span>مولّد 150 مليون كوكب</span></div>
       </div>
-      <div id="planet-info" class="glass"><span>المنطقة</span><strong>سهول أوريون</strong><span>•</span><span>تجريبي</span></div>
+      <div id="planet-info" class="glass">
+        <div class="planet-meta"><strong id="planet-name">...</strong><span id="planet-subtitle">...</span></div>
+        <button id="open-planet-map" type="button">اختيار كوكب</button>
+      </div>
     </div>
     <div id="status" class="glass">استكشف التضاريس المحيطة بك</div>
     <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Space</b> للقفز<br><b>اسحب</b> لتدوير الكاميرا · <b>Esc</b> لإيقاف ملء الشاشة</div>
@@ -89,9 +117,21 @@
       <div class="start-card glass">
         <div class="start-orb">✦</div>
         <h1>مرحباً أيها المستكشف</h1>
-        <p>أنت على سطح كوكب تجريبي. تحرّك بين التلال، اقفز، ودر بالكاميرا حول رائد الفضاء. هذه هي النواة الأولى لعالم الاستكشاف.</p>
+        <p>هناك 150 مليون كوكب يمكن توليدها من أرقامها وبذورها الرقمية. لكل كوكب تضاريس وبيئة وجاذبية ومناخ محدد، ويمكنك العودة إلى أي كوكب باستخدام رقمه.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
         <span class="note">أفضل تجربة على الهاتف عند تدويره أفقياً.<br>تحتاج اللعبة إلى اتصال بالإنترنت لتحميل Three.js من cdnjs.</span>
+      </div>
+    </section>
+    <section id="planet-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="planet-modal-title">
+      <div class="modal-card glass">
+        <div class="modal-head"><h2 id="planet-modal-title">بوابة الكواكب</h2><button id="close-planet-map" type="button" aria-label="إغلاق">×</button></div>
+        <p class="modal-intro">اختر عالماً من مجموعة تضم <strong>150,000,000 كوكب</strong>. رقم الكوكب يولّد بذرة ثابتة؛ لذلك سيبقى العالم نفسه عند العودة إليه.</p>
+        <label class="field-label" for="planet-id-input">رقم الكوكب (من 1 إلى 150,000,000)
+          <input id="planet-id-input" type="number" inputmode="numeric" min="1" max="150000000" step="1" maxlength="9" autocomplete="off">
+        </label>
+        <div id="planet-preview" aria-live="polite"></div>
+        <div class="modal-actions"><button id="travel-planet" type="button">انتقل إلى الكوكب</button><button id="random-planet" type="button">اكتشف كوكباً عشوائياً</button></div>
+        <span class="modal-note">تُولّد خصائص الكواكب عند الطلب ولا تُخزّن 150 مليون نسخة مسبقاً. حفظ آخر كوكب تزوره يتم محلياً على جهازك.</span>
       </div>
     </section>
     <div id="rotate-prompt"><div class="icon">📱</div><strong>أدر هاتفك أفقياً</strong><span>تم تصميم واجهة اللعب لتعمل بالعرض حتى تحصل على مجال رؤية وتحكم أفضل.</span></div>
@@ -101,24 +141,82 @@
   (() => {
     'use strict';
 
-    const SEED = 20261121;
+    const PLANET_COUNT = 150000000;
+    const DEFAULT_PLANET_ID = 20261121;
     const CHUNK_SIZE = 64;
     const CHUNK_SEGMENTS = 40;
     const CHUNK_RADIUS = 2;
     const PLAYER_SPEED = 9.2;
-    const GRAVITY = 24;
+    const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const smooth = t => t * t * (3 - 2 * t);
 
-    // Hash مرتبط بالإحداثيات: يعطي النتيجة نفسها بغض النظر عن ترتيب تحميل المناطق.
-    function hash2(x, z, seed = SEED) {
+    // كل قيمة seed تقابل رقماً واحداً فقط: سلسلة عمليات قابلة للعكس على 32 بت.
+    // لذلك لا تتصادم أرقام الكواكب ضمن المجال المحدد.
+    function permute32(value) {
+      let x = value >>> 0;
+      x ^= x >>> 16;
+      x = Math.imul(x, 0x7feb352d);
+      x ^= x >>> 15;
+      x = Math.imul(x, 0x846ca68b);
+      x ^= x >>> 16;
+      return x >>> 0;
+    }
+
+    function seedFromPlanetId(id) {
+      return permute32((id - 1) >>> 0);
+    }
+
+    function randomFromSeed(seed) {
+      let state = seed >>> 0;
+      return function () {
+        state = (state + 0x6D2B79F5) >>> 0;
+        let value = state;
+        value = Math.imul(value ^ (value >>> 15), value | 1);
+        value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+        return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    const BIOMES = [
+      { name: 'سهول زمردية', climate: 'معتدل', temp: [-18, 34], low: 0x526947, mid: 0x78965b, high: 0xa8b47a, rock: 0x69736a, snow: 0xe1e8dc, sky: 0x153b59, horizon: 0xa6c9c5, sun: 0xffd8a0, fog: 0x9dbeb7, relief: 1.0, rough: 1.0 },
+      { name: 'صحارى كهرمانية', climate: 'جاف وحار', temp: [24, 82], low: 0x775238, mid: 0xb9824c, high: 0xe0bb7d, rock: 0x766052, snow: 0xf0ddbd, sky: 0x51405a, horizon: 0xd89a70, sun: 0xffcf91, fog: 0xb88b70, relief: 1.15, rough: 0.9 },
+      { name: 'صفائح جليدية', climate: 'شديد البرودة', temp: [-150, -35], low: 0x45677a, mid: 0x82b9c8, high: 0xc7e5e8, rock: 0x657b89, snow: 0xf0fbff, sky: 0x102c4a, horizon: 0x9cc9dc, sun: 0xd6ecff, fog: 0x91b5c4, relief: 0.88, rough: 0.72 },
+      { name: 'أراضي بركانية', climate: 'حراري ومتقلب', temp: [40, 190], low: 0x342f36, mid: 0x70423d, high: 0xb36b4a, rock: 0x554e53, snow: 0xd8b7a5, sky: 0x311d2b, horizon: 0x9a5548, sun: 0xffa36c, fog: 0x76504b, relief: 1.42, rough: 1.45 },
+      { name: 'مرتفعات بنفسجية', climate: 'بارد وجاف', temp: [-55, 12], low: 0x51465f, mid: 0x826d9c, high: 0xb9a6c9, rock: 0x655c70, snow: 0xe6dff0, sky: 0x282344, horizon: 0xb29bbd, sun: 0xffd4c6, fog: 0x8d809e, relief: 1.2, rough: 1.12 },
+      { name: 'سهول نحاسية', climate: 'قاري بارد', temp: [-42, 20], low: 0x5d5141, mid: 0x9a7955, high: 0xc4a477, rock: 0x6a6257, snow: 0xdedbd2, sky: 0x1d3548, horizon: 0xb9a28b, sun: 0xffdfb0, fog: 0xa69b8a, relief: 0.92, rough: 0.82 },
+      { name: 'غلاف فيروزي', climate: 'رطب وكثيف', temp: [5, 56], low: 0x315d5d, mid: 0x4d9990, high: 0x9cc5a9, rock: 0x526f72, snow: 0xd5e5db, sky: 0x0c4858, horizon: 0x8ac4b8, sun: 0xe4ffd8, fog: 0x74a9a0, relief: 0.78, rough: 0.68 },
+      { name: 'قشرة متشققة', climate: 'رقيق الغلاف', temp: [-95, 75], low: 0x4b4d50, mid: 0x777b7b, high: 0xb0aaa0, rock: 0x55565b, snow: 0xd5d5d2, sky: 0x171f2b, horizon: 0x858a8c, sun: 0xffd8b1, fog: 0x737b80, relief: 1.32, rough: 1.28 }
+    ];
+
+    const NAME_A = ['أور', 'زير', 'كال', 'مير', 'ثا', 'نوف', 'إيل', 'فار', 'درا', 'سير', 'كرا', 'أز'];
+    const NAME_B = ['يون', 'ارا', 'يث', 'ون', 'يلا', 'ورا', 'يس', 'ان', 'ورا', 'اكس', 'يم', 'وس'];
+
+    function generatePlanet(id) {
+      const seed = seedFromPlanetId(id);
+      const random = randomFromSeed(seed);
+      const biome = BIOMES[Math.floor(random() * BIOMES.length)];
+      const temperature = Math.round(biome.temp[0] + random() * (biome.temp[1] - biome.temp[0]));
+      const gravityFactor = 0.62 + random() * 0.82;
+      const terrainScale = 0.72 + random() * 0.78;
+      const relief = biome.relief * (0.72 + random() * 0.62);
+      const roughness = biome.rough * (0.72 + random() * 0.68);
+      const ridgeStrength = 0.42 + random() * 1.05;
+      const atmosphere = 0.12 + random() * 1.28;
+      const dayHours = Math.round(8 + random() * 210);
+      const offset = (random() - 0.5) * 5;
+      const name = NAME_A[Math.floor(random() * NAME_A.length)] + NAME_B[Math.floor(random() * NAME_B.length)];
+      return { id, seed, name, biome, temperature, gravityFactor, terrainScale, relief, roughness, ridgeStrength, atmosphere, dayHours, offset };
+    }
+
+    function hash2(x, z, seed) {
       let h = Math.imul((x | 0) ^ seed, 374761393);
       h = (h + Math.imul((z | 0) ^ (seed >>> 1), 668265263)) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177);
       return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
     }
 
-    function valueNoise(x, z, seed = SEED) {
+    function valueNoise(x, z, seed) {
       const ix = Math.floor(x), iz = Math.floor(z);
       const fx = smooth(x - ix), fz = smooth(z - iz);
       const a = hash2(ix, iz, seed), b = hash2(ix + 1, iz, seed);
@@ -128,10 +226,10 @@
       return ab + (cd - ab) * fz;
     }
 
-    function fbm(x, z, frequency, seed = SEED, octaves = 4) {
+    function fbm(x, z, frequency, seed, octaves = 4) {
       let sum = 0, weight = 0, amplitude = 0.5, freq = frequency;
       for (let i = 0; i < octaves; i++) {
-        sum += valueNoise(x * freq, z * freq, seed + i * 1013) * amplitude;
+        sum += valueNoise(x * freq, z * freq, (seed + i * 1013) >>> 0) * amplitude;
         weight += amplitude;
         amplitude *= 0.5;
         freq *= 2;
@@ -139,15 +237,23 @@
       return sum / weight;
     }
 
+    let currentPlanetId = DEFAULT_PLANET_ID;
+    try {
+      const saved = Number(localStorage.getItem('madar.lastPlanetId'));
+      if (Number.isInteger(saved) && saved >= 1 && saved <= PLANET_COUNT) currentPlanetId = saved;
+    } catch (_) { /* التخزين المحلي اختياري */ }
+    let activePlanet = generatePlanet(currentPlanetId);
+
     function heightAt(x, z) {
-      const broad = fbm(x, z, 0.008, SEED, 5);
-      const detail = fbm(x + 91, z - 37, 0.036, SEED + 71, 3);
-      const ridges = fbm(x - 170, z + 210, 0.0045, SEED + 313, 3);
+      const { seed, terrainScale: scale, relief, roughness, ridgeStrength, offset } = activePlanet;
+      const broad = fbm(x, z, 0.008 * scale, seed, 5);
+      const detail = fbm(x + 91, z - 37, 0.036 * scale * roughness, (seed + 71) >>> 0, 3);
+      const ridges = fbm(x - 170, z + 210, 0.0045 * scale, (seed + 313) >>> 0, 3);
       const ridgeShape = Math.pow(1 - Math.abs(ridges - 0.5) * 2, 2.1);
-      return (broad - 0.5) * 22 + ridgeShape * 7.5 + (detail - 0.5) * 1.4 - 1.3;
+      return (broad - 0.5) * 22 * relief + ridgeShape * 7.5 * ridgeStrength + (detail - 0.5) * 1.4 * roughness - 1.3 + offset;
     }
 
-    let scene, camera, renderer, sky, sunSprite, sunLight, astronaut;
+    let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight;
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let chunks = new Map();
     let lastChunkX = Infinity, lastChunkZ = Infinity;
@@ -166,6 +272,53 @@
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
     const jumpButton = document.getElementById('jump');
+    const planetModal = document.getElementById('planet-modal');
+    const planetInput = document.getElementById('planet-id-input');
+    const planetPreview = document.getElementById('planet-preview');
+
+    function formatPlanetId(id) { return id.toLocaleString('en-US'); }
+
+    function planetSummary(planet) {
+      const gravity = (planet.gravityFactor).toFixed(2);
+      return [
+        ['البيئة', planet.biome.name],
+        ['المناخ', planet.biome.climate],
+        ['الحرارة', `${planet.temperature}° م`],
+        ['الجاذبية', `${gravity} g`],
+        ['طول اليوم', `${planet.dayHours} ساعة`],
+        ['الغلاف الجوي', planet.atmosphere.toFixed(2)]
+      ];
+    }
+
+    function renderPlanetPreview(planet) {
+      planetPreview.innerHTML = planetSummary(planet).map(([label, value]) =>
+        `<div class="stat"><span>${label}</span><strong>${value}</strong></div>`
+      ).join('');
+    }
+
+    function updatePlanetInfo() {
+      document.getElementById('planet-name').textContent = `${activePlanet.name} · ${activePlanet.biome.name}`;
+      document.getElementById('planet-subtitle').textContent = `الكوكب ${formatPlanetId(activePlanet.id)}  |  البذرة ${activePlanet.seed.toString(16).toUpperCase().padStart(8, '0')}`;
+    }
+
+    function applyPlanetEnvironment() {
+      if (!scene) return;
+      const biome = activePlanet.biome;
+      if (skyUniforms) {
+        skyUniforms.topColor.value.setHex(biome.sky);
+        skyUniforms.horizonColor.value.setHex(biome.horizon);
+        skyUniforms.sunColor.value.setHex(biome.sun);
+      }
+      if (scene.fog) scene.fog.color.setHex(biome.fog);
+      if (sunLight) {
+        sunLight.color.setHex(biome.sun);
+        sunLight.intensity = 1.05 + activePlanet.atmosphere * 0.22;
+      }
+      if (hemiLight) {
+        hemiLight.color.setHex(biome.sky);
+        hemiLight.groundColor.setHex(biome.low);
+      }
+    }
 
     function showToast(message) {
       toast.textContent = message;
@@ -176,11 +329,12 @@
 
     function makeSky() {
       const uniforms = {
-        topColor: { value: new THREE.Color(0x153b59) },
-        horizonColor: { value: new THREE.Color(0xa6c9c5) },
+        topColor: { value: new THREE.Color(activePlanet.biome.sky) },
+        horizonColor: { value: new THREE.Color(activePlanet.biome.horizon) },
         sunDirection: { value: new THREE.Vector3(-0.52, 0.68, -0.51).normalize() },
-        sunColor: { value: new THREE.Color(0xffd8a0) }
+        sunColor: { value: new THREE.Color(activePlanet.biome.sun) }
       };
+      skyUniforms = uniforms;
       const material = new THREE.ShaderMaterial({
         uniforms,
         vertexShader: `
@@ -231,7 +385,7 @@
       scene.add(sunSprite);
 
       const sunDir = uniforms.sunDirection.value;
-      sunLight = new THREE.DirectionalLight(0xffe2bd, 1.35);
+      sunLight = new THREE.DirectionalLight(activePlanet.biome.sun, 1.05 + activePlanet.atmosphere * 0.22);
       sunLight.position.copy(sunDir).multiplyScalar(85);
       sunLight.castShadow = true;
       sunLight.shadow.mapSize.set(window.innerWidth < 850 ? 1024 : 2048, window.innerWidth < 850 ? 1024 : 2048);
@@ -246,20 +400,18 @@
       sunLight.shadow.radius = 3;
       scene.add(sunLight);
       scene.add(sunLight.target);
-      scene.add(new THREE.HemisphereLight(0xc8e8ff, 0x526044, 0.72));
+      hemiLight = new THREE.HemisphereLight(activePlanet.biome.sky, activePlanet.biome.low, 0.72);
+      scene.add(hemiLight);
     }
 
     function terrainColor(height, normalY) {
-      const grassLow = new THREE.Color(0x667d4b);
-      const grass = new THREE.Color(0x789957);
-      const highGrass = new THREE.Color(0x9ba96b);
-      const rock = new THREE.Color(0x77796f);
-      const snow = new THREE.Color(0xe6e9e2);
-      const color = grassLow.clone();
-      if (height > -2) color.lerp(grass, clamp((height + 2) / 8, 0, 1));
-      if (height > 7) color.lerp(highGrass, clamp((height - 7) / 5, 0, 1));
-      if (normalY < 0.86) color.lerp(rock, clamp((0.86 - normalY) * 3.2, 0, 1));
-      if (height > 14) color.lerp(snow, clamp((height - 14) / 5, 0, 1));
+      const palette = activePlanet.biome;
+      const color = new THREE.Color(palette.low);
+      color.lerp(new THREE.Color(palette.mid), clamp((height + 4) / 14, 0, 1));
+      color.lerp(new THREE.Color(palette.high), clamp((height - 8) / 11, 0, 1));
+      if (normalY < 0.86) color.lerp(new THREE.Color(palette.rock), clamp((0.86 - normalY) * 3.2, 0, 1));
+      const snowLine = activePlanet.temperature < -70 ? 5 : 15;
+      if (height > snowLine) color.lerp(new THREE.Color(palette.snow), clamp((height - snowLine) / 8, 0, 1));
       return color;
     }
 
@@ -417,7 +569,7 @@
         return false;
       }
       scene = new THREE.Scene();
-      scene.fog = new THREE.Fog(0x9dbeb7, 115, 310);
+      scene.fog = new THREE.Fog(activePlanet.biome.fog, 115, 310);
       camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, .1, 900);
       renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 850 ? 1.2 : 1.5));
@@ -430,6 +582,7 @@
       game.insertBefore(renderer.domElement, game.firstChild);
 
       makeSky();
+      applyPlanetEnvironment();
       createAstronaut();
       updateChunks(true);
       camera.position.set(4, player.position.y + 6, 9);
@@ -510,7 +663,7 @@
 
     function jump() {
       if (!onGround) return;
-      verticalVelocity = 10.2;
+      verticalVelocity = 10.2 * Math.sqrt(activePlanet.gravityFactor);
       onGround = false;
     }
 
@@ -558,7 +711,7 @@
         astronaut.rotation.y = Math.atan2(dirX, dirZ);
       }
 
-      verticalVelocity -= GRAVITY * dt;
+      verticalVelocity -= BASE_GRAVITY * activePlanet.gravityFactor * dt;
       player.position.y += verticalVelocity * dt;
       const ground = heightAt(player.position.x, player.position.z);
       if (player.position.y <= ground) {
@@ -621,6 +774,90 @@
       renderer.render(scene, camera);
     }
 
+
+    function openPlanetMap() {
+      planetInput.value = String(activePlanet.id);
+      renderPlanetPreview(activePlanet);
+      planetModal.classList.remove('hidden');
+      setTimeout(() => { planetInput.focus(); planetInput.select(); }, 30);
+    }
+
+    function closePlanetMap() {
+      planetModal.classList.add('hidden');
+    }
+
+    function validatedPlanetId(raw) {
+      const id = Number(raw);
+      return Number.isSafeInteger(id) && id >= 1 && id <= PLANET_COUNT ? id : null;
+    }
+
+    function travelToPlanet(id) {
+      if (!validatedPlanetId(id)) {
+        showToast('رقم الكوكب يجب أن يكون بين 1 و150,000,000');
+        return;
+      }
+      activePlanet = generatePlanet(id);
+      currentPlanetId = id;
+      try { localStorage.setItem('madar.lastPlanetId', String(id)); } catch (_) { /* التخزين اختياري */ }
+      updatePlanetInfo();
+      if (scene && player) {
+        // إزالة القطع القديمة بالكامل حتى لا تختلط تضاريس كوكبين مختلفين.
+        for (const mesh of chunks.values()) {
+          scene.remove(mesh);
+          mesh.geometry.dispose();
+          mesh.material.dispose();
+        }
+        chunks.clear();
+        lastChunkX = lastChunkZ = Infinity;
+        player.position.set(0, heightAt(0, 0), 0);
+        verticalVelocity = 0;
+        onGround = true;
+        cameraYaw = (activePlanet.seed / 4294967295) * Math.PI * 2;
+        cameraPitch = 0.38;
+        updateChunks(true);
+        applyPlanetEnvironment();
+      }
+      closePlanetMap();
+      showToast(`تم الوصول إلى ${activePlanet.name} · الكوكب ${formatPlanetId(id)}`);
+    }
+
+    function randomPlanetId() {
+      let id = currentPlanetId;
+      try {
+        if (window.crypto && window.crypto.getRandomValues) {
+          const values = new Uint32Array(1);
+          do {
+            window.crypto.getRandomValues(values);
+            id = (values[0] % PLANET_COUNT) + 1;
+          } while (id === currentPlanetId);
+        } else {
+          do { id = 1 + Math.floor(Math.random() * PLANET_COUNT); } while (id === currentPlanetId);
+        }
+      } catch (_) {
+        id = currentPlanetId === PLANET_COUNT ? 1 : currentPlanetId + 1;
+      }
+      return id;
+    }
+
+    document.getElementById('open-planet-map').addEventListener('click', openPlanetMap);
+    document.getElementById('close-planet-map').addEventListener('click', closePlanetMap);
+    document.getElementById('travel-planet').addEventListener('click', () => {
+      const id = validatedPlanetId(planetInput.value);
+      if (id === null) { showToast('أدخل رقماً صحيحاً ضمن المجال المحدد'); return; }
+      travelToPlanet(id);
+    });
+    document.getElementById('random-planet').addEventListener('click', () => travelToPlanet(randomPlanetId()));
+    planetInput.addEventListener('input', () => {
+      const id = validatedPlanetId(planetInput.value);
+      if (id !== null) renderPlanetPreview(generatePlanet(id));
+    });
+    planetInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('travel-planet').click();
+      if (e.key === 'Escape') closePlanetMap();
+    });
+    planetModal.addEventListener('pointerdown', e => { if (e.target === planetModal) closePlanetMap(); });
+    updatePlanetInfo();
+
     async function enterFullscreen() {
       try {
         if (!document.fullscreenElement && game.requestFullscreen) await game.requestFullscreen();
@@ -637,7 +874,7 @@
       running = true;
       lastTime = performance.now();
       requestAnimationFrame(animate);
-      showToast('أهلاً بك على سطح أوريون');
+      showToast(`أهلاً بك على ${activePlanet.name}`);
     });
 
     // لا تُنشأ الرسوميات قبل ضغط ابدأ، لتفادي تشغيل WebGL قبل تفاعل المستخدم.
