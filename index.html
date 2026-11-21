@@ -154,9 +154,9 @@
     const DEFAULT_PLANET_ID = 20261121;
     const PLANET_RADIUS = 170;
     const IS_TOUCH_DEVICE = window.matchMedia('(pointer: coarse)').matches;
-    const LOW_END_DEVICE = IS_TOUCH_DEVICE && ((navigator.deviceMemory || 4) <= 4 || (navigator.hardwareConcurrency || 4) <= 4);
-    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 72 : 112;
-    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 36 : 56;
+    const LOW_END_DEVICE = IS_TOUCH_DEVICE && ((navigator.deviceMemory || 6) <= 3 || (navigator.hardwareConcurrency || 8) <= 4);
+    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 128 : 160;
+    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 64 : 80;
     const PLAYER_SPEED = 9.2;
     const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -216,8 +216,8 @@
       const atmosphere = 0.12 + random() * 1.28;
       const dayHours = Math.round(8 + random() * 210);
       const offset = (random() - 0.5) * 5;
-      const hasOcean = random() > (biome.climate === "جاف وحار" ? 0.46 : 0.18);
-      const seaLevel = -2.2 + random() * 4.4;
+      const hasOcean = random() > (biome.climate === "جاف وحار" ? 0.38 : 0.22);
+      const seaLevel = 1.2 + random() * 2.4;
       const name = NAME_A[Math.floor(random() * NAME_A.length)] + NAME_B[Math.floor(random() * NAME_B.length)];
       return { id, seed, name, biome, temperature, gravityFactor, terrainScale, relief, roughness, ridgeStrength, atmosphere, dayHours, offset, hasOcean, seaLevel };
     }
@@ -261,12 +261,16 @@
 
     function terrainHeight(normal) {
       const p = activePlanet;
-      const broad = fbm3(normal.x, normal.y, normal.z, 3.0 * p.terrainScale, p.seed, 5);
-      const detail = fbm3(normal.x, normal.y, normal.z, 10.5 * p.terrainScale * p.roughness, (p.seed + 71) >>> 0, 3);
-      const ridges = fbm3(normal.x, normal.y, normal.z, 4.8 * p.terrainScale, (p.seed + 313) >>> 0, 4);
+      const continents = fbm3(normal.x, normal.y, normal.z, 1.12 * p.terrainScale, (p.seed + 911) >>> 0, 4);
+      const broad = fbm3(normal.x, normal.y, normal.z, 2.65 * p.terrainScale, p.seed, 5);
+      const detail = fbm3(normal.x, normal.y, normal.z, 9.2 * p.terrainScale * p.roughness, (p.seed + 71) >>> 0, 3);
+      const ridges = fbm3(normal.x, normal.y, normal.z, 5.1 * p.terrainScale, (p.seed + 313) >>> 0, 4);
       const ridgeShape = Math.pow(1 - Math.abs(ridges - 0.5) * 2, 2.1);
-      return (broad - 0.5) * 19 * p.relief + ridgeShape * 5.8 * p.ridgeStrength +
-        (detail - 0.5) * 2.0 * p.roughness - 1.2 + p.offset;
+      const continentalMass = (continents - 0.485) * 43;
+      const rollingLand = (broad - 0.5) * 13 * p.relief;
+      const mountainBelts = ridgeShape * 4.8 * p.ridgeStrength;
+      const surfaceDetail = (detail - 0.5) * 2.1 * p.roughness;
+      return continentalMass + rollingLand + mountainBelts + surfaceDetail - 0.7 + p.offset;
     }
     let WORLD_UP, WORLD_X, surfaceNormal, verticalOffset = 0;
     function surfaceFrame(normal) {
@@ -280,18 +284,34 @@
     }
     function findSpawnNormal() {
       let best = new THREE.Vector3(0, 0, 1);
-      let bestHeight = -Infinity;
-      const samples = 192;
+      let bestScore = -Infinity;
+      const samples = 560;
       const goldenAngle = Math.PI * (3 - Math.sqrt(5));
       for (let i = 0; i < samples; i++) {
         const y = 1 - 2 * (i + 0.5) / samples;
         const ring = Math.sqrt(Math.max(0, 1 - y * y));
         const angle = i * goldenAngle;
         const candidate = new THREE.Vector3(Math.cos(angle) * ring, y, Math.sin(angle) * ring);
-        const h = terrainHeight(candidate);
-        const aboveWater = !activePlanet.hasOcean || h > activePlanet.seaLevel + 0.8;
-        if (aboveWater && h > bestHeight) {
-          bestHeight = h;
+        const height = terrainHeight(candidate);
+        if (activePlanet.hasOcean && height <= activePlanet.seaLevel + 1.4) continue;
+
+        let score = activePlanet.hasOcean ? -Math.abs(height - activePlanet.seaLevel - 4) * 0.08 : height * 0.12;
+        if (activePlanet.hasOcean) {
+          const frame = surfaceFrame(candidate);
+          const step = 0.19;
+          let wetNeighbors = 0;
+          for (let d = 0; d < 8; d++) {
+            const bearing = d * Math.PI / 4;
+            const tangent = frame.north.clone().multiplyScalar(Math.cos(bearing))
+              .addScaledVector(frame.east, Math.sin(bearing));
+            const nearby = candidate.clone().multiplyScalar(Math.cos(step))
+              .addScaledVector(tangent, Math.sin(step)).normalize();
+            if (terrainHeight(nearby) < activePlanet.seaLevel + 0.35) wetNeighbors++;
+          }
+          score += wetNeighbors * 2.8;
+        }
+        if (score > bestScore) {
+          bestScore = score;
           best.copy(candidate);
         }
       }
@@ -310,7 +330,7 @@
 
     let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight;
     let player, leftLeg, rightLeg, leftArm, rightArm;
-    let planetSurface, oceanMesh, atmosphereMesh;
+    let planetSurface, oceanMesh, atmosphereMesh, oceanTexture = null;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
@@ -457,7 +477,7 @@
       sunLight = new THREE.DirectionalLight(activePlanet.biome.sun, 1.05 + activePlanet.atmosphere * 0.22);
       sunLight.position.copy(sunDir).multiplyScalar(85);
       sunLight.castShadow = true;
-      sunLight.shadow.mapSize.set(window.innerWidth < 850 ? 1024 : 2048, window.innerWidth < 850 ? 1024 : 2048);
+      sunLight.shadow.mapSize.set(IS_TOUCH_DEVICE ? 1024 : 2048, IS_TOUCH_DEVICE ? 1024 : 2048);
       sunLight.shadow.camera.left = -62;
       sunLight.shadow.camera.right = 62;
       sunLight.shadow.camera.top = 62;
@@ -479,6 +499,10 @@
       color.lerp(new THREE.Color(palette.mid), clamp((height + 5) / 16, 0, 1));
       color.lerp(new THREE.Color(palette.high), clamp((height - 7) / 13, 0, 1));
       if (normalDot < 0.985) color.lerp(new THREE.Color(palette.rock), clamp((0.985 - normalDot) * 17, 0, 1));
+      if (activePlanet.hasOcean && height >= activePlanet.seaLevel && height < activePlanet.seaLevel + 3.2) {
+        const beach = new THREE.Color(activePlanet.temperature < -45 ? 0xb9d0c5 : 0xc8b58a);
+        color.lerp(beach, 1 - (height - activePlanet.seaLevel) / 3.2);
+      }
       const snowLine = activePlanet.temperature < -70 ? 5 : 15;
       if (height > snowLine) color.lerp(new THREE.Color(palette.snow), clamp((height - snowLine) / 9, 0, 1));
       return color;
@@ -529,20 +553,48 @@
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       geometry.computeBoundingSphere();
       planetSurface = new THREE.Mesh(geometry,
-        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.94, metalness: 0.02 }));
+        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0.015 }));
       planetSurface.receiveShadow = true;
-      planetSurface.castShadow = !LOW_END_DEVICE;
+      planetSurface.castShadow = true;
       scene.add(planetSurface);
 
       if (activePlanet.hasOcean) {
         const waterGeometry = new THREE.SphereGeometry(PLANET_RADIUS + activePlanet.seaLevel,
-          LOW_END_DEVICE ? 64 : 96, LOW_END_DEVICE ? 32 : 48);
+          LOW_END_DEVICE ? 88 : 128, LOW_END_DEVICE ? 44 : 64);
+        if (!oceanTexture) {
+          const waveCanvas = document.createElement('canvas');
+          waveCanvas.width = 512;
+          waveCanvas.height = 256;
+          const wave = waveCanvas.getContext('2d');
+          const seaGradient = wave.createLinearGradient(0, 0, 0, 256);
+          seaGradient.addColorStop(0, '#4aa0b2');
+          seaGradient.addColorStop(0.45, '#176c8b');
+          seaGradient.addColorStop(1, '#08344f');
+          wave.fillStyle = seaGradient;
+          wave.fillRect(0, 0, 512, 256);
+          for (let row = 0; row < 38; row++) {
+            const y = row * 7 + 4;
+            wave.beginPath();
+            for (let x = 0; x <= 512; x += 8) {
+              const py = y + Math.sin(x * 0.025 + row * 0.8) * 3.2 + Math.sin(x * 0.009 + row) * 2;
+              if (x === 0) wave.moveTo(x, py); else wave.lineTo(x, py);
+            }
+            wave.strokeStyle = row % 4 === 0 ? 'rgba(190,239,236,.36)' : 'rgba(102,192,207,.17)';
+            wave.lineWidth = row % 4 === 0 ? 2.1 : 1.0;
+            wave.stroke();
+          }
+          oceanTexture = new THREE.CanvasTexture(waveCanvas);
+          oceanTexture.wrapS = THREE.RepeatWrapping;
+          oceanTexture.wrapT = THREE.RepeatWrapping;
+          oceanTexture.repeat.set(2, 1);
+          oceanTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+        }
         const waterMaterial = new THREE.MeshPhongMaterial({
-          color: activePlanet.biome.name === 'صحارى كهرمانية' ? 0x267d9b : 0x167da5,
-          specular: 0x9bdcf0, shininess: 72
+          color: 0xffffff, map: oceanTexture,
+          specular: 0xb7edff, shininess: 115
         });
         oceanMesh = new THREE.Mesh(waterGeometry, waterMaterial);
-        oceanMesh.receiveShadow = !LOW_END_DEVICE;
+        oceanMesh.receiveShadow = true;
         oceanMesh.renderOrder = 1;
         scene.add(oceanMesh);
       }
@@ -781,10 +833,10 @@
       scene = new THREE.Scene();
       scene.fog = new THREE.Fog(activePlanet.biome.fog, 90, 285);
       camera = new THREE.PerspectiveCamera(62, viewport.width / viewport.height, .1, 900);
-      renderer = new THREE.WebGLRenderer({ antialias: !LOW_END_DEVICE, powerPreference: 'high-performance' });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1 : 1.35));
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1.2 : (IS_TOUCH_DEVICE ? 1.5 : 1.8)));
       renderer.setSize(viewport.width, viewport.height);
-      renderer.shadowMap.enabled = !LOW_END_DEVICE;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.outputEncoding = THREE.sRGBEncoding;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -812,7 +864,7 @@
       const viewport = getGameViewport();
       camera.aspect = viewport.width / viewport.height;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1 : 1.35));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1.2 : (IS_TOUCH_DEVICE ? 1.5 : 1.8)));
       renderer.setSize(viewport.width, viewport.height);
     }
 
@@ -949,6 +1001,7 @@
       sunSprite.position.set(camera.position.x - 156, camera.position.y + 204, camera.position.z - 153);
       sunLight.target.position.copy(player.position);
       sunLight.position.set(player.position.x - 0.52 * 85, player.position.y + 0.68 * 85, player.position.z - 0.51 * 85);
+      if (oceanTexture) oceanTexture.offset.x = (oceanTexture.offset.x + dt * 0.0015) % 1;
     }
 
     function animate(now) {
