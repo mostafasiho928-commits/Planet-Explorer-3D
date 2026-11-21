@@ -183,9 +183,9 @@
     const PLANET_RADIUS = 12000;
     const WORLD_RELIEF_SCALE = 18;
     const IS_TOUCH_DEVICE = window.matchMedia('(pointer: coarse)').matches;
-    const LOW_END_DEVICE = IS_TOUCH_DEVICE && ((navigator.deviceMemory || 6) <= 3 || (navigator.hardwareConcurrency || 8) <= 4);
-    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 384 : 640;
-    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 192 : 320;
+    const LOW_END_DEVICE = IS_TOUCH_DEVICE && ((navigator.deviceMemory || 4) <= 3 || (navigator.hardwareConcurrency || 6) <= 4);
+    const PLANET_WIDTH_SEGMENTS = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 288 : 384) : 640;
+    const PLANET_HEIGHT_SEGMENTS = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 144 : 192) : 320;
     const PLAYER_SPEED = 15.5;
     const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -425,7 +425,7 @@
     let terrainVertexData = null, terrainGridWidth = 0, terrainGridHeight = 0;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
     let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null, weatherMesh = null;
-    let oreMesh = null, oreNodes = [], oresCollected = 0, caveRoot = null, caveNormal = null, caveMode = false, missionCompleted = false;
+    let oreMesh = null, oreNodes = [], oresCollected = 0, caveRoot = null, caveNormal = null, caveMode = false, caveLocalPosition = null, missionCompleted = false;
     let roverRoot = null, roverNormal = null, drivingRover = false, oxygen = 100, oxygenToastClock = 0;
     let shipRoot = null, shipNormal = null, shipMode = false, shipAirborne = false, shipCanExit = false, shipFuel = 100, fuelWarning = false;
     let mineSwingTimer = 0;
@@ -960,7 +960,10 @@
         const arch = new THREE.Mesh(new THREE.TorusGeometry(15, 3.2, 9, 28), caveRock);
         arch.position.set(0, 15, 0);
         caveRoot.add(arch);
-        const mouth = new THREE.Mesh(new THREE.CircleGeometry(12.4, 32), caveDark);
+        const mouth = new THREE.Mesh(
+          new THREE.CircleGeometry(12.4, 32),
+          new THREE.MeshBasicMaterial({ color: 0x05090e, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })
+        );
         mouth.position.set(0, 15, 0.35);
         caveRoot.add(mouth);
         const chamber = new THREE.Mesh(
@@ -970,6 +973,19 @@
         chamber.position.set(0, 0, 43);
         chamber.scale.set(25, 25, 58);
         caveRoot.add(chamber);
+        const caveFloor = new THREE.Mesh(new THREE.PlaneGeometry(34, 88),
+          new THREE.MeshStandardMaterial({ color: 0x26313a, roughness: 1, metalness: 0.04 }));
+        caveFloor.rotation.x = -Math.PI / 2;
+        caveFloor.position.set(0, -0.7, 48);
+        caveRoot.add(caveFloor);
+        for (const side of [-1, 1]) {
+          const wall = new THREE.Mesh(new THREE.BoxGeometry(1.8, 15, 86), caveRock);
+          wall.position.set(side * 17, 6.5, 48);
+          caveRoot.add(wall);
+        }
+        const backWall = new THREE.Mesh(new THREE.BoxGeometry(35, 15, 2), caveRock);
+        backWall.position.set(0, 6.5, 91);
+        caveRoot.add(backWall);
         for (let i = 0; i < 7; i++) {
           const x = (random() - 0.5) * 34;
           const z = 20 + random() * 52;
@@ -1203,6 +1219,11 @@
       if (!caveRoot || !caveNormal) { showToast('لم يُعثر على كهف في هذا العالم'); return; }
       if (caveMode) {
         caveMode = false;
+        surfaceNormal.copy(caveNormal);
+        caveLocalPosition = null;
+        verticalOffset = 0; verticalVelocity = 0; onGround = true;
+        player.position.copy(surfacePoint(surfaceNormal, 0.8));
+        orientPlayer(null);
         if (cloudMesh) cloudMesh.visible = true;
         if (moonRig) moonRig.visible = true;
         scene.fog = new THREE.Fog(activePlanet.biome.fog, 260, 4300);
@@ -1214,6 +1235,12 @@
       const distance = Math.acos(clamp(surfaceNormal.dot(caveNormal), -1, 1)) * PLANET_RADIUS;
       if (distance > 18) { showToast('اقترب من مدخل الكهف أولاً'); return; }
       caveMode = true;
+      caveLocalPosition = new THREE.Vector3(0, 2.1, 18);
+      player.position.copy(caveRoot.localToWorld(caveLocalPosition.clone()));
+      player.quaternion.copy(caveRoot.quaternion);
+      verticalOffset = 0; verticalVelocity = 0; onGround = true;
+      cameraYaw = cameraYawTarget = 0;
+      cameraPitch = cameraPitchTarget = -0.08;
       if (cloudMesh) cloudMesh.visible = false;
       if (moonRig) moonRig.visible = false;
       scene.fog = new THREE.Fog(0x111923, 22, 260);
@@ -1767,6 +1794,31 @@
       smoothedMove.x += (input.strafe - smoothedMove.x) * blend;
       smoothedMove.y += (input.forward - smoothedMove.y) * blend;
       const moveAmount = Math.min(1, Math.hypot(smoothedMove.x, smoothedMove.y));
+      if (caveMode && caveRoot && caveLocalPosition) {
+        const localForward = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+        const localRight = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
+        const localDirection = localForward.multiplyScalar(smoothedMove.y).addScaledVector(localRight, smoothedMove.x);
+        const caveSpeed = (sprintHeld || keys.has('shift') ? 15.5 : 8.5) * dt;
+        if (moveAmount > 0.025) {
+          caveLocalPosition.x = clamp(caveLocalPosition.x + localDirection.x * caveSpeed, -13.5, 13.5);
+          caveLocalPosition.z = clamp(caveLocalPosition.z + localDirection.z * caveSpeed, 8, 87);
+        }
+        player.position.copy(caveRoot.localToWorld(caveLocalPosition.clone()));
+        const localUp = new THREE.Vector3(0, 1, 0).applyQuaternion(caveRoot.quaternion).normalize();
+        const localForwardWorld = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw).applyQuaternion(caveRoot.quaternion).normalize();
+        const localRightWorld = new THREE.Vector3().crossVectors(localUp, localForwardWorld).normalize();
+        const heading = localForwardWorld.clone().multiplyScalar(smoothedMove.y).addScaledVector(localRightWorld, smoothedMove.x);
+        if (heading.lengthSq() > 0.002) {
+          const facing = heading.normalize();
+          const rightAxis = new THREE.Vector3().crossVectors(localUp, facing).normalize();
+          player.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(rightAxis, localUp, facing));
+        }
+        const caveWalk = moveAmount > 0.035 ? Math.sin(elapsed * 10.5) * 0.42 * moveAmount : 0;
+        leftLeg.rotation.x = caveWalk; rightLeg.rotation.x = -caveWalk;
+        leftArm.rotation.x = -caveWalk * 0.72; rightArm.rotation.x = caveWalk * 0.72;
+        status.textContent = 'داخل الكهف · راقب الأكسجين';
+        return;
+      }
       const frame = surfaceFrame(surfaceNormal);
       const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
       // Camera-right is forward × surface-up; the former order mirrored horizontal input.
@@ -1819,30 +1871,37 @@
       cameraYaw += yawDelta * (1 - Math.exp(-15 * dt));
       cameraPitch += (cameraPitchTarget - cameraPitch) * (1 - Math.exp(-13 * dt));
       cameraDistance += (cameraDistanceTarget - cameraDistance) * (1 - Math.exp(-9 * dt));
-      const frame = surfaceFrame(surfaceNormal);
-      const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
-      const target = player.position.clone().addScaledVector(surfaceNormal, 2.0);
-      const orbitElevation = 0.18;
+      const frame = caveMode ? null : surfaceFrame(surfaceNormal);
+      const upAxis = caveMode
+        ? new THREE.Vector3(0, 1, 0).applyQuaternion(caveRoot.quaternion).normalize()
+        : surfaceNormal.clone();
+      const forward = caveMode
+        ? new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw).applyQuaternion(caveRoot.quaternion).normalize()
+        : frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
+      const target = player.position.clone().addScaledVector(upAxis, 2.0);
+      const orbitElevation = caveMode ? 0.22 : 0.18;
       const desired = target.clone()
         .addScaledVector(forward, -Math.cos(orbitElevation) * cameraDistance)
-        .addScaledVector(surfaceNormal, Math.sin(orbitElevation) * cameraDistance);
+        .addScaledVector(upAxis, Math.sin(orbitElevation) * cameraDistance);
       camera.position.lerp(desired, 1 - Math.exp(-12 * dt));
-      const cameraNormal = camera.position.clone().normalize();
-      const minimumCameraRadius = PLANET_RADIUS + surfaceHeightAt(cameraNormal) + 2.2;
-      if (camera.position.length() < minimumCameraRadius) camera.position.copy(cameraNormal.multiplyScalar(minimumCameraRadius));
+      if (!caveMode) {
+        const cameraNormal = camera.position.clone().normalize();
+        const minimumCameraRadius = PLANET_RADIUS + surfaceHeightAt(cameraNormal) + 2.2;
+        if (camera.position.length() < minimumCameraRadius) camera.position.copy(cameraNormal.multiplyScalar(minimumCameraRadius));
+      }
       const viewDirection = forward.clone().multiplyScalar(Math.cos(cameraPitch))
-        .addScaledVector(surfaceNormal, Math.sin(cameraPitch)).normalize();
-      camera.up.copy(surfaceNormal);
+        .addScaledVector(upAxis, Math.sin(cameraPitch)).normalize();
+      camera.up.copy(upAxis);
       camera.lookAt(camera.position.clone().addScaledVector(viewDirection, 1000));
       sky.position.copy(camera.position);
-      if (cloudMesh) {
+      if (cloudMesh && !caveMode) {
         cloudMesh.position.copy(player.position);
         const cloudForward = frame.north.clone();
         const cloudRight = new THREE.Vector3().crossVectors(surfaceNormal, cloudForward).normalize();
         cloudMesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(cloudRight, surfaceNormal, cloudForward));
-        cloudMesh.rotateY(elapsed * 0.00012);
+        cloudMesh.rotateY(dt * 0.012);
       }
-      if (moonRig) {
+      if (moonRig && !caveMode) {
         const moonDirection = forward.clone().multiplyScalar(0.78).addScaledVector(surfaceNormal, 0.58).normalize();
         moonRig.position.copy(camera.position).addScaledVector(moonDirection, 8200);
         moonRig.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), moonDirection);
