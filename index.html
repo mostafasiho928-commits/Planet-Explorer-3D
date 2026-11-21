@@ -64,6 +64,7 @@
     #status { position: absolute; z-index: 5; top: 76px; left: 50%; transform: translateX(-50%); padding: 8px 13px; border-radius: 12px; color: #d8edf2; font-size: 11px; white-space: nowrap; pointer-events: none; }
     #inventory { position: absolute; z-index: 6; left: 50%; bottom: max(13px, env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 8px 13px; border-radius: 12px; color: var(--muted); font-size: 10px; white-space: nowrap; pointer-events: none; }
     #inventory strong { color: #f3d58c; font-size: 12px; margin-inline-start: 4px; }
+    #mission { position: absolute; z-index: 6; left: 50%; bottom: max(51px, calc(env(safe-area-inset-bottom) + 46px)); transform: translateX(-50%); padding: 7px 11px; border-radius: 11px; color: #cdebf0; font-size: 9px; white-space: nowrap; pointer-events: none; }
     #resource-hint { position: absolute; z-index: 7; left: 50%; top: 112px; transform: translateX(-50%); max-width: min(80vw, 390px); padding: 9px 14px; border-radius: 13px; color: #e8fbff; background: rgba(4,20,29,.82); border: 1px solid rgba(111,218,226,.24); font-size: 11px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; }
     #resource-hint.show { opacity: 1; }
     #collect { border-color: rgba(243,201,119,.72); color: #fff0c5; background: rgba(104,70,24,.82); }
@@ -116,7 +117,7 @@
     <div id="topbar">
       <div class="brand glass">
         <div class="brand-mark">✦</div>
-        <div class="brand-copy"><strong>مَدار | مستكشف الكواكب</strong><span>عوالم كروية قابلة للاستكشاف</span></div>
+        <div class="brand-copy"><strong>مَدار | مستكشف الكواكب</strong><span>عوالم كروية واسعة بتضاريس حية</span></div>
       </div>
       <div id="planet-info" class="glass">
         <div class="planet-meta"><strong id="planet-name">...</strong><span id="planet-subtitle">...</span></div>
@@ -125,6 +126,7 @@
     </div>
     <div id="status" class="glass">استكشف الساحل والسهول</div>
     <div id="inventory" class="glass">بلورات جُمعت: <strong id="mineral-count">0</strong></div>
+    <div id="mission" class="glass">مهمة الاستكشاف: اجمع 5 بلورات</div>
     <div id="resource-hint" aria-live="polite"></div>
     <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز<br>اسحب بالفأرة لتدوير الكاميرا · عجلة الفأرة للتقريب<br><b>E</b> للبحث عن المعادن · <b>F</b> للجمع</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
@@ -140,9 +142,9 @@
       <div class="start-card glass">
         <div class="start-orb">✦</div>
         <h1>مرحباً أيها المستكشف</h1>
-        <p>اكتشف قارات وسواحل ومحيطات واسعة، وغابات وصخوراً وبلورات مخفية. لكل كوكب طبيعته وجاذبيته ومناخه، ويمكنك العودة إليه برقم فريد.</p>
+        <p>تجوّل في قارات شاسعة، وتسلق سلاسل جبلية وهضاباً صخرية، واعبر الوديان والسواحل تحت غيوم وطقس يتغير من كوكب إلى آخر. امسح البلورات واجمع العينات وأكمل مهمة الاستكشاف.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
-        <span class="note">تخطيط اللعبة أفقي. امسح زر «بحث»، اتبع المؤشر الذهبي، ثم اضغط «جمع» قرب البلورة.<br>حرّك العصا اليسرى، واسحب في النصف الأيمن لتدوير الكاميرا، وقرّب أو أبعد إصبعين لتغيير المسافة. زر الركض يزيد السرعة. تحتاج اللعبة إلى اتصال لتحميل محرك الرسوميات.</span>
+        <span class="note">اللعبة أفقية. ادفع العصا اليسرى بالاتجاه الذي تريد التحرك إليه؛ اليمين يتحرك يميناً واليسار يساراً. اسحب في النصف الأيمن لتدوير الكاميرا، واستخدم إصبعين للتقريب والإبعاد. اجمع 5 بلورات لإكمال المهمة. قد يتغير الطقس بين المطر والثلج والغبار حسب الكوكب.</span>
       </div>
     </section>
     <section id="planet-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="planet-modal-title">
@@ -165,13 +167,13 @@
 
     const PLANET_COUNT = 150000000;
     const DEFAULT_PLANET_ID = 20261121;
-    const PLANET_RADIUS = 2600;
-    const WORLD_RELIEF_SCALE = 8;
+    const PLANET_RADIUS = 12000;
+    const WORLD_RELIEF_SCALE = 13;
     const IS_TOUCH_DEVICE = window.matchMedia('(pointer: coarse)').matches;
     const LOW_END_DEVICE = IS_TOUCH_DEVICE && ((navigator.deviceMemory || 6) <= 3 || (navigator.hardwareConcurrency || 8) <= 4);
-    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 256 : 384;
-    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 128 : 192;
-    const PLAYER_SPEED = 10.5;
+    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 320 : 512;
+    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 160 : 256;
+    const PLAYER_SPEED = 8.5;
     const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const smooth = t => t * t * (3 - 2 * t);
@@ -233,7 +235,12 @@
       const hasOcean = random() > (biome.climate === "جاف وحار" ? 0.38 : 0.22);
       const seaLevel = (4.5 + random() * 3.0) * WORLD_RELIEF_SCALE;
       const name = NAME_A[Math.floor(random() * NAME_A.length)] + NAME_B[Math.floor(random() * NAME_B.length)];
-      return { id, seed, name, biome, temperature, gravityFactor, terrainScale, relief, roughness, ridgeStrength, atmosphere, dayHours, offset, hasOcean, seaLevel };
+      const weatherRoll = random();
+      const weather = biome.name === 'صفائح جليدية' || temperature < -62 ? 'snow' :
+        (biome.name === 'غلاف فيروزي' && weatherRoll > 0.14) ? 'rain' :
+        (biome.name === 'صحارى كهرمانية' && weatherRoll > 0.62) ? 'dust' :
+        (weatherRoll > 0.91 ? 'rain' : 'clear');
+      return { id, seed, name, biome, temperature, gravityFactor, terrainScale, relief, roughness, ridgeStrength, atmosphere, dayHours, offset, hasOcean, seaLevel, weather };
     }
 
     function hash3(x, y, z, seed) {
@@ -275,16 +282,23 @@
 
     function terrainHeight(normal) {
       const p = activePlanet;
-      const continents = fbm3(normal.x, normal.y, normal.z, 1.12 * p.terrainScale, (p.seed + 911) >>> 0, 4);
-      const broad = fbm3(normal.x, normal.y, normal.z, 2.65 * p.terrainScale, p.seed, 5);
-      const detail = fbm3(normal.x, normal.y, normal.z, 9.2 * p.terrainScale * p.roughness, (p.seed + 71) >>> 0, 3);
-      const ridges = fbm3(normal.x, normal.y, normal.z, 5.1 * p.terrainScale, (p.seed + 313) >>> 0, 4);
-      const ridgeShape = Math.pow(1 - Math.abs(ridges - 0.5) * 2, 2.1);
+      const continents = fbm3(normal.x, normal.y, normal.z, 0.86 * p.terrainScale, (p.seed + 911) >>> 0, 4);
+      const broad = fbm3(normal.x, normal.y, normal.z, 2.05 * p.terrainScale, p.seed, 5);
+      const detail = fbm3(normal.x, normal.y, normal.z, 10.4 * p.terrainScale * p.roughness, (p.seed + 71) >>> 0, 3);
+      const ridges = fbm3(normal.x, normal.y, normal.z, 3.85 * p.terrainScale, (p.seed + 313) >>> 0, 5);
+      const plateauField = fbm3(normal.x, normal.y, normal.z, 1.48 * p.terrainScale, (p.seed + 1259) >>> 0, 4);
+      const plateauDetail = fbm3(normal.x, normal.y, normal.z, 4.3 * p.terrainScale, (p.seed + 1997) >>> 0, 3);
+      const valleyField = fbm3(normal.x, normal.y, normal.z, 6.2 * p.terrainScale, (p.seed + 271) >>> 0, 3);
+      const ridgeSignal = clamp(1 - Math.abs(ridges - 0.5) * 2, 0, 1);
+      const mountainMask = smooth(clamp((broad - 0.455) * 3.4, 0, 1));
+      const plateauMask = smooth(clamp((plateauField - 0.585) * 7.5, 0, 1));
+      const valleyCut = Math.pow(Math.max(0, 1 - Math.abs(valleyField - 0.5) * 7.5), 4) * 3.6;
       const continentalMass = (continents - 0.485) * 43;
-      const rollingLand = (broad - 0.5) * 13 * p.relief;
-      const mountainBelts = ridgeShape * 4.8 * p.ridgeStrength;
-      const surfaceDetail = (detail - 0.5) * 2.1 * p.roughness;
-      return (continentalMass + rollingLand + mountainBelts + surfaceDetail - 0.7 + p.offset) * WORLD_RELIEF_SCALE;
+      const rollingLand = (broad - 0.5) * 17 * p.relief;
+      const mountainBelts = Math.pow(ridgeSignal, 2.35) * 16.5 * p.ridgeStrength * mountainMask;
+      const plateaus = plateauMask * (10.5 + (plateauDetail - 0.5) * 5.5);
+      const surfaceDetail = (detail - 0.5) * 2.4 * p.roughness;
+      return (continentalMass + rollingLand + mountainBelts + plateaus - valleyCut + surfaceDetail - 0.7 + p.offset) * WORLD_RELIEF_SCALE;
     }
     let WORLD_UP, WORLD_X, surfaceNormal, verticalOffset = 0, spawnYaw = 0.25;
     function surfaceFrame(normal) {
@@ -357,7 +371,7 @@
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh, oceanTexture = null;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
-    let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null;
+    let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null, weatherMesh = null;
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraYawTarget = 0.25;
@@ -379,6 +393,7 @@
     const collectButton = document.getElementById('collect');
     const resourceHint = document.getElementById('resource-hint');
     const mineralCount = document.getElementById('mineral-count');
+    const missionLabel = document.getElementById('mission');
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
     const jumpButton = document.getElementById('jump');
@@ -504,7 +519,7 @@
       const texture = new THREE.CanvasTexture(canvas);
       sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
       sunSprite.position.set(-220, 290, -215);
-      sunSprite.scale.set(100, 100, 1);
+      sunSprite.scale.set(560, 560, 1);
       scene.add(sunSprite);
 
       const sunDir = uniforms.sunDirection.value;
@@ -531,14 +546,16 @@
     function terrainColor(height, normalDot) {
       const palette = activePlanet.biome;
       const color = new THREE.Color(palette.low);
-      color.lerp(new THREE.Color(palette.mid), clamp((height + 40) / 128, 0, 1));
-      color.lerp(new THREE.Color(palette.high), clamp((height - 56) / 104, 0, 1));
+      const elevation = height / WORLD_RELIEF_SCALE;
+      color.lerp(new THREE.Color(palette.mid), clamp((elevation + 20) / 72, 0, 1));
+      color.lerp(new THREE.Color(palette.high), clamp((elevation - 24) / 96, 0, 1));
       if (normalDot < 0.985) color.lerp(new THREE.Color(palette.rock), clamp((0.985 - normalDot) * 17, 0, 1));
-      if (activePlanet.hasOcean && height >= activePlanet.seaLevel && height < activePlanet.seaLevel + 25.6) {
+      const beachWidth = 3.6 * WORLD_RELIEF_SCALE;
+      if (activePlanet.hasOcean && height >= activePlanet.seaLevel && height < activePlanet.seaLevel + beachWidth) {
         const beach = new THREE.Color(activePlanet.temperature < -45 ? 0xb9d0c5 : 0xc8b58a);
-        color.lerp(beach, 1 - (height - activePlanet.seaLevel) / 25.6);
+        color.lerp(beach, 1 - (height - activePlanet.seaLevel) / beachWidth);
       }
-      const snowLine = (activePlanet.temperature < -70 ? 5 : 15) * WORLD_RELIEF_SCALE;
+      const snowLine = (activePlanet.temperature < -70 ? 8 : 23) * WORLD_RELIEF_SCALE;
       if (height > snowLine) color.lerp(new THREE.Color(palette.snow), clamp((height - snowLine) / 72, 0, 1));
       return color;
     }
@@ -557,6 +574,7 @@
       trackedMineral = null;
       cloudMesh = null;
       mineralMarker = null;
+      weatherMesh = null;
       collectButton.classList.add("hidden");
       resourceHint.classList.remove("show");
 
@@ -668,16 +686,16 @@
       else if (biomeName === 'صحارى كهرمانية') floraFactor = 0.32;
       else if (biomeName === 'صفائح جليدية') floraFactor = 0.44;
 
-      const floraCount = Math.max(28, Math.floor((LOW_END_DEVICE ? 190 : 320) * floraFactor));
-      const grassCount = Math.max(70, Math.floor((LOW_END_DEVICE ? 620 : 1050) * floraFactor));
-      const rockCount = LOW_END_DEVICE ? 145 : 230;
-      const mineralNodeTarget = LOW_END_DEVICE ? 96 : 150;
-      const cloudCount = LOW_END_DEVICE ? 45 : 72;
+      const floraCount = Math.max(24, Math.floor((LOW_END_DEVICE ? 240 : 520) * floraFactor));
+      const grassCount = Math.max(90, Math.floor((LOW_END_DEVICE ? 720 : 1420) * floraFactor));
+      const rockCount = LOW_END_DEVICE ? 180 : 310;
+      const mineralNodeTarget = LOW_END_DEVICE ? 110 : 170;
+      const cloudCount = LOW_END_DEVICE ? 32 : 46;
       const up = new THREE.Vector3(0, 1, 0);
       const dummy = new THREE.Object3D();
       const localFrame = surfaceFrame(surfaceNormal);
 
-      function sampleDryLand(minMeters = 18, maxMeters = 520) {
+      function sampleDryLand(minMeters = 18, maxMeters = 4200) {
         for (let attempt = 0; attempt < 64; attempt++) {
           const distance = Math.sqrt(minMeters * minMeters +
             random() * (maxMeters * maxMeters - minMeters * minMeters));
@@ -722,16 +740,16 @@
 
       let floraAdded = 0, grassAdded = 0, rocksAdded = 0, mineralsAdded = 0;
       for (let attempt = 0; attempt < floraCount * 9 && floraAdded < floraCount; attempt++) {
-        const sample = sampleDryLand(36, 600);
+        const sample = sampleDryLand(120, 3400);
         if (sample) {
-          const height = 7 + random() * 7;
+          const height = 8 + random() * 10;
           const rotation = random() * Math.PI * 2;
           placeRadialInstance(trunkMesh, floraAdded, sample.normal, sample.height, height * 0.5,
             [1.12, height, 1.12], rotation, dummy, up);
           placeRadialInstance(lowerCrown, floraAdded, sample.normal, sample.height, height * 1.03,
-            [height * 1.06, height * 0.86, height * 1.06], rotation, dummy, up);
+            [height * 0.9, height * 0.78, height * 0.9], rotation, dummy, up);
           placeRadialInstance(upperCrown, floraAdded, sample.normal, sample.height, height * 1.62,
-            [height * 0.76, height * 0.72, height * 0.76], rotation + 0.16, dummy, up);
+            [height * 0.66, height * 0.64, height * 0.66], rotation + 0.16, dummy, up);
           floraAdded++;
         }
         if (attempt > 0 && attempt % 55 === 0) {
@@ -741,7 +759,7 @@
       }
 
       for (let attempt = 0; attempt < grassCount * 8 && grassAdded < grassCount; attempt++) {
-        const sample = sampleDryLand(20, 520);
+        const sample = sampleDryLand(40, 2600);
         if (sample) {
           const height = 0.55 + random() * 0.8;
           placeRadialInstance(grassMesh, grassAdded, sample.normal, sample.height, height * 0.42,
@@ -753,7 +771,7 @@
       }
 
       for (let attempt = 0; attempt < rockCount * 9 && rocksAdded < rockCount; attempt++) {
-        const sample = sampleDryLand(24, 640);
+        const sample = sampleDryLand(80, 3800);
         if (sample) {
           const size = 0.55 + random() * 1.35;
           placeRadialInstance(rockMesh, rocksAdded, sample.normal, sample.height, size * 0.38,
@@ -767,8 +785,8 @@
       for (let attempt = 0; attempt < mineralNodeTarget * 12 && mineralsAdded < mineralNodeTarget; attempt++) {
         const starterCluster = mineralsAdded < 18;
         const nearCluster = mineralsAdded < 52;
-        const sample = starterCluster ? sampleDryLand(18, 70) :
-          (nearCluster ? sampleDryLand(70, 220) : sampleDryLand(220, 1150));
+        const sample = starterCluster ? sampleDryLand(18, 110) :
+          (nearCluster ? sampleDryLand(110, 620) : sampleDryLand(620, 4800));
         if (sample) {
           const size = 0.95 + random() * 0.62;
           placeRadialInstance(crystals, mineralsAdded, sample.normal, sample.height, size * 2.22,
@@ -783,31 +801,64 @@
         }
       }
 
-      // A light cloud bank gives the horizon depth without a costly volumetric effect.
+      // Cloud banks are assembled from broad puffs and sit above the mountain belts.
+      const cloudPuffsPerBank = 4;
       const clouds = new THREE.InstancedMesh(
-        new THREE.SphereGeometry(1, 9, 6),
+        new THREE.SphereGeometry(1, 10, 7),
         new THREE.MeshLambertMaterial({
-          color: activePlanet.biome.horizon, transparent: true, opacity: 0.62, depthWrite: false
+          color: activePlanet.weather === 'rain' ? new THREE.Color(activePlanet.biome.horizon).multiplyScalar(0.72) : activePlanet.biome.horizon,
+          transparent: true, opacity: activePlanet.weather === 'rain' ? 0.72 : 0.5, depthWrite: false
         }),
-        cloudCount
+        cloudCount * cloudPuffsPerBank
       );
-      for (let i = 0; i < cloudCount; i++) {
-        const angle = 0.22 + random() * 0.66;
+      let cloudIndex = 0;
+      for (let bank = 0; bank < cloudCount; bank++) {
+        const angle = 0.30 + random() * 0.62;
         const bearing = random() * Math.PI * 2;
         const tangent = localFrame.north.clone().multiplyScalar(Math.cos(bearing))
           .addScaledVector(localFrame.east, Math.sin(bearing));
         const normal = surfaceNormal.clone().multiplyScalar(Math.cos(angle))
           .addScaledVector(tangent, Math.sin(angle)).normalize();
         const frame = surfaceFrame(normal);
-        const puff = i % 3;
-        const offsetA = (puff - 1) * (5 + random() * 2);
-        const offsetB = (random() - 0.5) * 7;
-        dummy.position.copy(normal).multiplyScalar(PLANET_RADIUS + terrainHeight(normal) + 29 * WORLD_RELIEF_SCALE + random() * 24);
-        dummy.position.addScaledVector(frame.east, offsetA).addScaledVector(frame.north, offsetB);
-        dummy.quaternion.setFromUnitVectors(up, normal);
-        dummy.scale.set(5.5 + random() * 5, 1.8 + random() * 1.8, 4.2 + random() * 4.5);
-        dummy.updateMatrix();
-        clouds.setMatrixAt(i, dummy.matrix);
+        const cloudBase = PLANET_RADIUS + terrainHeight(normal) + 760 + random() * 300;
+        for (let puff = 0; puff < cloudPuffsPerBank; puff++) {
+          const offsetA = (puff - 1.5) * (34 + random() * 24);
+          const offsetB = (random() - 0.5) * 62;
+          dummy.position.copy(normal).multiplyScalar(cloudBase);
+          dummy.position.addScaledVector(frame.east, offsetA).addScaledVector(frame.north, offsetB);
+          dummy.quaternion.setFromUnitVectors(up, normal);
+          dummy.rotateY(random() * Math.PI * 2);
+          dummy.scale.set(28 + random() * 34, 9 + random() * 9, 24 + random() * 34);
+          dummy.updateMatrix();
+          clouds.setMatrixAt(cloudIndex++, dummy.matrix);
+        }
+      }
+      clouds.count = cloudIndex;
+
+      if (activePlanet.weather !== 'clear') {
+        const particleCount = LOW_END_DEVICE ? 180 : 360;
+        const particlePositions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount; i++) {
+          particlePositions[i * 3] = (Math.random() - 0.5) * 190;
+          particlePositions[i * 3 + 1] = Math.random() * 125;
+          particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 190;
+        }
+        const weatherGeometry = new THREE.BufferGeometry();
+        weatherGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        const weatherColor = activePlanet.weather === 'snow' ? 0xe9f6ff :
+          (activePlanet.weather === 'rain' ? 0x9bc9e5 : 0xc9a47b);
+        const weatherMaterial = new THREE.PointsMaterial({
+          color: weatherColor,
+          size: activePlanet.weather === 'snow' ? 0.9 : 0.48,
+          transparent: true,
+          opacity: activePlanet.weather === 'snow' ? 0.82 : 0.52,
+          depthWrite: false,
+          sizeAttenuation: true
+        });
+        weatherMesh = new THREE.Points(weatherGeometry, weatherMaterial);
+        weatherMesh.frustumCulled = false;
+        scene.add(weatherMesh);
+        resourceMeshes.push(weatherMesh);
       }
 
       trunkMesh.count = floraAdded;
@@ -838,10 +889,11 @@
       resourceHint.classList.remove('show');
       mineralsCollected = 0;
       mineralCount.textContent = '0';
-      trackedMineral = nearestMineral(1200)?.node || null;
+      missionLabel.textContent = 'مهمة الاستكشاف: اجمع 5 بلورات';
+      trackedMineral = nearestMineral(4800)?.node || null;
     }
 
-    function nearestMineral(maxDistance = 1200) {
+    function nearestMineral(maxDistance = 4800) {
       let nearest = null, nearestDistance = Infinity;
       for (const node of mineralNodes) {
         if (node.collected) continue;
@@ -888,7 +940,7 @@
 
     function scanForMineral() {
       if (!running || traveling) return;
-      const found = nearestMineral(1200);
+      const found = nearestMineral(4800);
       if (!found) {
         trackedMineral = null;
         resourceHint.classList.remove('show');
@@ -926,7 +978,13 @@
       collectButton.classList.add('hidden');
       resourceHint.textContent = 'تم جمع البلورة بنجاح';
       resourceHint.classList.add('show');
-      showToast('أُضيفت بلورة إلى مخزونك');
+      if (mineralsCollected >= 5) {
+        missionLabel.textContent = 'اكتملت المهمة — تم مسح المنطقة';
+        showToast('ممتاز! اكتملت مهمة جمع العينات الخمس');
+      } else {
+        missionLabel.textContent = 'مهمة الاستكشاف: ' + mineralsCollected + '/5 بلورات';
+        showToast('أُضيفت بلورة إلى المخزون · ' + mineralsCollected + '/5');
+      }
     }
 
     function addPart(parent, geometry, material, position, scale) {
@@ -1011,8 +1069,8 @@
       surfaceNormal = new THREE.Vector3(0, 0, 1);
       const viewport = getGameViewport();
       scene = new THREE.Scene();
-      scene.fog = new THREE.Fog(activePlanet.biome.fog, 130, 1500);
-      camera = new THREE.PerspectiveCamera(66, viewport.width / viewport.height, .1, 6000);
+      scene.fog = new THREE.Fog(activePlanet.biome.fog, 260, 4300);
+      camera = new THREE.PerspectiveCamera(66, viewport.width / viewport.height, .1, 18000);
       renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1.2 : (IS_TOUCH_DEVICE ? 1.5 : 1.8)));
       renderer.setSize(viewport.width, viewport.height);
@@ -1037,7 +1095,7 @@
       window.addEventListener('orientationchange', () => setTimeout(onResize, 180), { passive: true });
       bindControls();
       startButton.textContent = 'ابدأ الاستكشاف';
-      status.textContent = 'استكشف الساحل والسهول • امسح البلورات واجمعها';
+      status.textContent = 'استكشف الجبال والهضاب والوديان • اجمع العينات';
       return true;
     }
 
@@ -1090,7 +1148,7 @@
           if (cameraTouches.size >= 2) {
             const points = [...cameraTouches.values()];
             const pinchDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-            if (pinchStartDistance > 0) cameraDistanceTarget = clamp(pinchStartZoom * pinchStartDistance / Math.max(35, pinchDistance), 8, 28);
+            if (pinchStartDistance > 0) cameraDistanceTarget = clamp(pinchStartZoom * pinchStartDistance / Math.max(35, pinchDistance), 8, 36);
             return;
           }
         }
@@ -1122,7 +1180,7 @@
       renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
       renderer.domElement.addEventListener('wheel', e => {
         e.preventDefault();
-        cameraDistanceTarget = clamp(cameraDistanceTarget + Math.sign(e.deltaY) * 1.35, 8, 28);
+        cameraDistanceTarget = clamp(cameraDistanceTarget + Math.sign(e.deltaY) * 1.65, 8, 36);
       }, { passive: false });
 
       joystick.addEventListener('pointerdown', e => {
@@ -1163,7 +1221,16 @@
       const max = Math.max(20, rect.width * 0.5 - stick.offsetWidth * 0.5 - 5);
       const length = Math.hypot(dx, dy);
       if (length > max) { dx = dx / length * max; dy = dy / length * max; }
-      moveInput.x = dx / max; moveInput.y = dy / max;
+      const rawX = dx / max, rawY = dy / max;
+      const magnitude = Math.hypot(rawX, rawY);
+      const deadZone = 0.09;
+      if (magnitude <= deadZone) {
+        moveInput.x = 0; moveInput.y = 0;
+      } else {
+        const adjusted = Math.min(1, (magnitude - deadZone) / (1 - deadZone));
+        moveInput.x = rawX / magnitude * adjusted;
+        moveInput.y = rawY / magnitude * adjusted;
+      }
       stick.style.transform = `translate(${dx}px, ${dy}px)`;
     }
 
@@ -1197,14 +1264,15 @@
     function updatePlayer(dt) {
       const input = getMovementInput();
       const currentAmount = Math.hypot(smoothedMove.x, smoothedMove.y);
-      const response = input.amount > currentAmount ? 8.5 : 13.5;
+      const response = input.amount > currentAmount ? 11.5 : 16.5;
       const blend = 1 - Math.exp(-response * dt);
       smoothedMove.x += (input.strafe - smoothedMove.x) * blend;
       smoothedMove.y += (input.forward - smoothedMove.y) * blend;
       const moveAmount = Math.min(1, Math.hypot(smoothedMove.x, smoothedMove.y));
       const frame = surfaceFrame(surfaceNormal);
       const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
-      const right = new THREE.Vector3().crossVectors(surfaceNormal, forward).normalize();
+      // Camera-right is forward × surface-up; the former order mirrored horizontal input.
+      const right = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
       const direction = forward.clone().multiplyScalar(smoothedMove.y).addScaledVector(right, smoothedMove.x);
       const sprinting = sprintHeld || keys.has('shift');
       const speed = PLAYER_SPEED * (sprinting ? 1.72 : 1);
@@ -1249,10 +1317,32 @@
       if (camera.position.length() < minimumCameraRadius) camera.position.copy(cameraNormal.multiplyScalar(minimumCameraRadius));
       camera.up.copy(surfaceNormal); camera.lookAt(target);
       sky.position.copy(camera.position);
-      sunSprite.position.set(camera.position.x - 156, camera.position.y + 204, camera.position.z - 153);
+      sunSprite.position.set(camera.position.x - 936, camera.position.y + 1224, camera.position.z - 918);
       sunLight.target.position.copy(player.position);
       sunLight.position.set(player.position.x - 0.52 * 85, player.position.y + 0.68 * 85, player.position.z - 0.51 * 85);
       if (oceanTexture) oceanTexture.offset.x = (oceanTexture.offset.x + dt * 0.006) % 1;
+    }
+
+    function updateWeather(dt) {
+      if (!weatherMesh || !player) return;
+      weatherMesh.position.copy(player.position);
+      weatherMesh.quaternion.setFromUnitVectors(WORLD_UP, surfaceNormal);
+      const attribute = weatherMesh.geometry.getAttribute('position');
+      const values = attribute.array;
+      const kind = activePlanet.weather;
+      const fallSpeed = kind === 'snow' ? 3.8 : (kind === 'rain' ? 68 : 5.5);
+      const drift = kind === 'dust' ? 10 : (kind === 'snow' ? 1.6 : 0.5);
+      for (let i = 0; i < values.length; i += 3) {
+        values[i] += drift * dt;
+        values[i + 1] -= fallSpeed * dt;
+        values[i + 2] += drift * 0.32 * dt;
+        if (values[i + 1] < -5) {
+          values[i] = (Math.random() - 0.5) * 190;
+          values[i + 1] = 75 + Math.random() * 55;
+          values[i + 2] = (Math.random() - 0.5) * 190;
+        }
+      }
+      attribute.needsUpdate = true;
     }
 
     function animate(now) {
@@ -1264,7 +1354,8 @@
       updatePlayer(dt);
       updateCamera(dt);
       updateResourceHint();
-      if (cloudMesh) cloudMesh.rotation.y += dt * 0.00032;
+      updateWeather(dt);
+      if (cloudMesh) cloudMesh.rotation.y += dt * 0.00105;
       renderer.render(scene, camera);
     }
 
