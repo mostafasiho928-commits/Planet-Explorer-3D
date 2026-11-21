@@ -1780,7 +1780,7 @@
         const dy = portraitFallback ? -screenDx : screenDy;
         const sensitivity = e.pointerType === 'mouse' ? 0.0062 : 0.0082;
         cameraYawTarget += dx * sensitivity;
-        cameraPitchTarget = clamp(cameraPitchTarget - dy * sensitivity * 0.95, -0.78, 0.82);
+        cameraPitchTarget = clamp(cameraPitchTarget - dy * sensitivity * 0.95, -0.78, 1.28);
       });
 
       const endCamera = e => {
