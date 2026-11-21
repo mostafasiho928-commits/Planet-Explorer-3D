@@ -129,7 +129,7 @@
         <h1>مرحباً أيها المستكشف</h1>
         <p>استكشف عالماً كروياً حقيقياً بتضاريس إجرائية ومحيطات وغلاف جوي. هناك 150 مليون كوكب لكل منها بيئته وجاذبيته ومناخه، ويمكنك العودة إلى أي كوكب باستخدام رقمه.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
-        <span class="note">اللعبة مصممة للوضع الأفقي. على Android، استخدم ملء الشاشة أو ثبّت اللعبة من المتصفح لتطبيق قفل الاتجاه.<br>تحتاج اللعبة إلى اتصال بالإنترنت لتحميل Three.js.</span>
+        <span class="note">تخطيط اللعبة أفقي. لقفل اتجاه الجهاز تلقائياً، افتح النسخة المستضافة وثبّتها كتطبيق من Chrome.<br>تحتاج اللعبة إلى اتصال بالإنترنت لتحميل Three.js.</span>
       </div>
     </section>
     <section id="planet-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="planet-modal-title">
@@ -312,7 +312,7 @@
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
-    let running = false, initializing = false, traveling = false, lastTime = 0, elapsed = 0;
+    let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraPitch = 0.38, cameraDistance = 10.5;
     let joystickPointer = null, cameraPointer = null;
@@ -1063,6 +1063,7 @@
 
     startButton.addEventListener('click', async () => {
       if (initializing || running) return;
+      if (startupRequiresReload) { window.location.reload(); return; }
       initializing = true;
       startButton.disabled = true;
       startButton.textContent = 'بدء الاستكشاف...';
@@ -1082,15 +1083,16 @@
         showToast('أهلاً بك على ' + activePlanet.name);
       } catch (error) {
         console.error(error);
+        startupRequiresReload = !!scene;
         startButton.disabled = false;
-        startButton.textContent = 'إعادة المحاولة';
+        startButton.textContent = startupRequiresReload ? 'إعادة تحميل الصفحة' : 'إعادة المحاولة';
         showToast('تعذر بدء اللعبة. تحقق من اتصال الإنترنت ودعم WebGL.');
       } finally {
         initializing = false;
       }
     });
 
-    // لا تُنشأ الرسوميات قبل ضغط ابدأ، لتفادي تشغيل WebGL قبل تفاعل المستخدم.    // لا تُنشأ الرسوميات قبل ضغط ابدأ، لتفادي تشغيل WebGL قبل تفاعل المستخدم.
+    // لا تُنشأ الرسوميات قبل ضغط ابدأ، لتفادي تشغيل WebGL قبل تفاعل المستخدم.
   })();
   </script>
 </body>
