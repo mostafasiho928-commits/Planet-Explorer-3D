@@ -1775,14 +1775,26 @@
           enemy.cooldown = enemy.isBoss ? 1.1 : (2.0 + enemy.phase * 0.5);
         }
       }
+      const segmentStart = new THREE.Vector3();
+      const segmentDelta = new THREE.Vector3();
+      const targetOffset = new THREE.Vector3();
+      const closestPoint = new THREE.Vector3();
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const shot = projectiles[i];
         shot.life -= dt;
+        segmentStart.copy(shot.mesh.position);
         shot.mesh.position.addScaledVector(shot.velocity, dt);
+        segmentDelta.subVectors(shot.mesh.position, segmentStart);
+        const segmentLengthSq = Math.max(0.0001, segmentDelta.lengthSq());
         let consumed = false;
         if (shot.owner === 'player') {
           for (const enemy of enemyDrones) {
-            if (!enemy.alive || shot.mesh.position.distanceToSquared(enemy.root.position) > 34) continue;
+            if (!enemy.alive) continue;
+            targetOffset.subVectors(enemy.root.position, segmentStart);
+            const hitT = clamp(targetOffset.dot(segmentDelta) / segmentLengthSq, 0, 1);
+            closestPoint.copy(segmentStart).addScaledVector(segmentDelta, hitT);
+            const hitRadius = enemy.isBoss ? 16 : 7;
+            if (closestPoint.distanceToSquared(enemy.root.position) > hitRadius * hitRadius) continue;
             enemy.health--;
             enemy.core.scale.setScalar(Math.max(0.35, enemy.health / enemy.maxHealth));
             if (enemy.health <= 0) {
@@ -1803,7 +1815,11 @@
             }
             consumed = true; break;
           }
-        } else if (shot.mesh.position.distanceToSquared(player.position) < 22) {
+        } else {
+          targetOffset.subVectors(player.position, segmentStart);
+          const hitT = clamp(targetOffset.dot(segmentDelta) / segmentLengthSq, 0, 1);
+          closestPoint.copy(segmentStart).addScaledVector(segmentDelta, hitT);
+          if (closestPoint.distanceToSquared(player.position) < 36) {
           playerHealth = Math.max(0, playerHealth - 11);
           lastDamageAt = elapsed; consumed = true;
           showToast('أصابتك مسيّرة دفاعية — تحرك وواصل الرد');
@@ -1824,6 +1840,7 @@
             player.position.copy(surfacePoint(surfaceNormal));
             salvageCountLabel.textContent = String(salvageCredits);
             showToast('أُعيد إحياؤك في نقطة الهبوط وخسرت 10 قطع خردة');
+          }
           }
         }
         if (consumed || shot.life <= 0 || shot.mesh.position.distanceTo(player.position) > 2400) {
