@@ -819,8 +819,9 @@
       geometry.computeBoundingSphere();
       const soilCanvas=document.createElement('canvas');soilCanvas.width=soilCanvas.height=QUALITY.texture;
       const soilCtx=soilCanvas.getContext('2d'),soilData=soilCtx.createImageData(QUALITY.texture,QUALITY.texture);
-      const soilRand=randomFromSeed((activePlanet.seed^0x6D2B79F5)>>>0),soilColor=new THREE.Color(activePlanet.biome.palette.ground||activePlanet.biome.palette.low||0x8a785e);
-      for(let p=0;p<soilData.data.length;p+=4){const n=(soilRand()-.5)*34;soilData.data[p]=clamp(soilColor.r*255+n,0,255);soilData.data[p+1]=clamp(soilColor.g*255+n*.8,0,255);soilData.data[p+2]=clamp(soilColor.b*255+n*.6,0,255);soilData.data[p+3]=255;}
+      const soilRand=randomFromSeed((activePlanet.seed^0x6D2B79F5)>>>0);
+      // Neutral luminance-only soil grain: vertex colours retain each planet's biome palette.
+      for(let p=0;p<soilData.data.length;p+=4){const grain=(soilRand()-.5)*34,base=226+grain;soilData.data[p]=base;soilData.data[p+1]=base;soilData.data[p+2]=base;soilData.data[p+3]=255;}
       soilCtx.putImageData(soilData,0,0);for(let k=0;k<QUALITY.texture*QUALITY.texture/420;k++){soilCtx.fillStyle=soilRand()>.5?'rgba(35,28,22,.18)':'rgba(255,245,220,.14)';soilCtx.beginPath();soilCtx.arc(soilRand()*QUALITY.texture,soilRand()*QUALITY.texture,.5+soilRand()*2,0,Math.PI*2);soilCtx.fill();}
       const soilTexture=new THREE.CanvasTexture(soilCanvas);soilTexture.wrapS=soilTexture.wrapT=THREE.RepeatWrapping;soilTexture.repeat.set(28,14);soilTexture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());soilTexture.encoding=THREE.sRGBEncoding;
       planetSurface = new THREE.Mesh(geometry,
