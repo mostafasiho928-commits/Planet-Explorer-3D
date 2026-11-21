@@ -70,14 +70,17 @@
     .action.hidden { display: none !important; }
     #help { position: absolute; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); padding: 9px 12px; border-radius: 13px; color: var(--muted); font-size: 10px; line-height: 1.8; pointer-events: none; }
     #help b { color: #e6f8fb; font-weight: 600; }
-    #joystick { position: absolute; z-index: 8; left: max(24px, env(safe-area-inset-left)); bottom: max(25px, env(safe-area-inset-bottom)); width: 118px; height: 118px; border: 1px solid rgba(220,245,255,.25); border-radius: 50%; background: rgba(5,18,29,.32); box-shadow: inset 0 0 24px rgba(0,0,0,.16); display: none; touch-action: none; }
-    #stick { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: linear-gradient(145deg, rgba(130,225,238,.9), rgba(56,144,169,.82)); border: 1px solid rgba(255,255,255,.45); box-shadow: 0 5px 18px rgba(0,0,0,.28); pointer-events: none; }
+    #joystick { position: absolute; z-index: 8; left: max(22px, env(safe-area-inset-left)); bottom: max(22px, env(safe-area-inset-bottom)); width: 132px; height: 132px; border: 1px solid rgba(220,245,255,.28); border-radius: 50%; background: radial-gradient(circle, rgba(38,91,111,.34), rgba(5,18,29,.48)); box-shadow: inset 0 0 26px rgba(0,0,0,.2), 0 8px 22px rgba(0,0,0,.16); display: none; touch-action: none; }
+    #stick { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: linear-gradient(145deg, rgba(155,238,245,.96), rgba(49,145,174,.9)); border: 1px solid rgba(255,255,255,.52); box-shadow: 0 5px 19px rgba(0,0,0,.32); pointer-events: none; }
     #actions { position: absolute; z-index: 8; right: max(22px, env(safe-area-inset-right)); bottom: max(25px, env(safe-area-inset-bottom)); display: none; gap: 12px; align-items: flex-end; direction: ltr; }
     .action { width: 58px; height: 58px; border-radius: 50%; border: 1px solid rgba(230,250,255,.32); background: rgba(7,22,34,.72); color: #effbff; font-size: 23px; box-shadow: 0 8px 18px rgba(0,0,0,.22); backdrop-filter: blur(9px); touch-action: none; }
     .action:active { transform: scale(.94); background: rgba(67,149,169,.72); }
     .action small { display: block; margin-top: -3px; font: 700 9px Tahoma, Arial, sans-serif; line-height: 1; }
     #jump { border-color: rgba(112,216,232,.55); }
     #scan { border-color: rgba(243,201,119,.55); color: #ffe6a9; font-size: 20px; }
+    #sprint { border-color: rgba(255,180,112,.55); color: #ffe0bb; font-size: 19px; }
+    #sprint.held { background: rgba(154,83,38,.84); box-shadow: 0 0 0 3px rgba(255,191,128,.16), 0 8px 22px rgba(0,0,0,.3); }
+    #camera-reset { border-color: rgba(112,216,232,.45); color: #c7f5fa; font-size: 21px; }
     #start-screen { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; padding: 22px; background: radial-gradient(ellipse at 50% 35%, rgba(13,49,66,.4), rgba(2,9,16,.78)); }
     .start-card { width: min(430px, 100%); padding: 27px; border-radius: 23px; text-align: center; }
     .start-orb { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; font-size: 35px; color: #a3eff4; background: radial-gradient(circle at 35% 30%, #a4ebdf, #287d8c 55%, #102b43 78%); box-shadow: 0 0 45px rgba(79,194,211,.23); }
@@ -102,7 +105,8 @@
       #open-planet-map { padding: 7px 8px; font-size: 9px; }
       #actions { gap: 8px; right: max(14px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); }
       .action { width: 52px; height: 52px; }
-      #joystick { width: 104px; height: 104px; left: max(15px, env(safe-area-inset-left)); bottom: max(18px, env(safe-area-inset-bottom)); }
+      #joystick { width: 116px; height: 116px; left: max(14px, env(safe-area-inset-left)); bottom: max(17px, env(safe-area-inset-bottom)); }
+      #stick { width: 54px; height: 54px; margin: -27px 0 0 -27px; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
@@ -122,12 +126,14 @@
     <div id="status" class="glass">استكشف الساحل والسهول</div>
     <div id="inventory" class="glass">بلورات جُمعت: <strong id="mineral-count">0</strong></div>
     <div id="resource-hint" aria-live="polite"></div>
-    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Space</b> للقفز<br><b>E</b> للبحث عن المعادن · <b>F</b> للجمع</div>
+    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز<br>اسحب بالفأرة لتدوير الكاميرا · عجلة الفأرة للتقريب<br><b>E</b> للبحث عن المعادن · <b>F</b> للجمع</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
     <div id="actions">
       <button class="action" id="scan" aria-label="البحث عن المعادن" title="تحديد أقرب بلورة"><span>⌕</span><small>بحث</small></button>
       <button class="action hidden" id="collect" aria-label="جمع البلورة" title="جمع البلورة"><span>✦</span><small>جمع</small></button>
-      <button class="action" id="jump" aria-label="قفز">↑</button>
+      <button class="action" id="camera-reset" aria-label="إعادة الكاميرا خلف الشخصية" title="إعادة الكاميرا"><span>↻</span><small>كاميرا</small></button>
+      <button class="action" id="sprint" aria-label="الركض" title="اضغط باستمرار للركض"><span>»</span><small>ركض</small></button>
+      <button class="action" id="jump" aria-label="قفز">↑<small>قفز</small></button>
     </div>
     <div id="toast"></div>
     <section id="start-screen">
@@ -136,7 +142,7 @@
         <h1>مرحباً أيها المستكشف</h1>
         <p>اكتشف قارات وسواحل ومحيطات واسعة، وغابات وصخوراً وبلورات مخفية. لكل كوكب طبيعته وجاذبيته ومناخه، ويمكنك العودة إليه برقم فريد.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
-        <span class="note">تخطيط اللعبة أفقي. امسح زر «بحث»، اتبع المؤشر الذهبي، ثم اضغط «جمع» قرب البلورة.<br>تحتاج اللعبة إلى اتصال بالإنترنت لتحميل Three.js.</span>
+        <span class="note">تخطيط اللعبة أفقي. امسح زر «بحث»، اتبع المؤشر الذهبي، ثم اضغط «جمع» قرب البلورة.<br>حرّك العصا اليسرى، واسحب في النصف الأيمن لتدوير الكاميرا، وقرّب أو أبعد إصبعين لتغيير المسافة. زر الركض يزيد السرعة. تحتاج اللعبة إلى اتصال لتحميل محرك الرسوميات.</span>
       </div>
     </section>
     <section id="planet-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="planet-modal-title">
@@ -159,12 +165,13 @@
 
     const PLANET_COUNT = 150000000;
     const DEFAULT_PLANET_ID = 20261121;
-    const PLANET_RADIUS = 170;
+    const PLANET_RADIUS = 2600;
+    const WORLD_RELIEF_SCALE = 8;
     const IS_TOUCH_DEVICE = window.matchMedia('(pointer: coarse)').matches;
     const LOW_END_DEVICE = IS_TOUCH_DEVICE && ((navigator.deviceMemory || 6) <= 3 || (navigator.hardwareConcurrency || 8) <= 4);
-    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 128 : 160;
-    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 64 : 80;
-    const PLAYER_SPEED = 9.2;
+    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 256 : 384;
+    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 128 : 192;
+    const PLAYER_SPEED = 10.5;
     const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const smooth = t => t * t * (3 - 2 * t);
@@ -224,7 +231,7 @@
       const dayHours = Math.round(8 + random() * 210);
       const offset = (random() - 0.5) * 5;
       const hasOcean = random() > (biome.climate === "جاف وحار" ? 0.38 : 0.22);
-      const seaLevel = 4.5 + random() * 3.0;
+      const seaLevel = (4.5 + random() * 3.0) * WORLD_RELIEF_SCALE;
       const name = NAME_A[Math.floor(random() * NAME_A.length)] + NAME_B[Math.floor(random() * NAME_B.length)];
       return { id, seed, name, biome, temperature, gravityFactor, terrainScale, relief, roughness, ridgeStrength, atmosphere, dayHours, offset, hasOcean, seaLevel };
     }
@@ -277,7 +284,7 @@
       const rollingLand = (broad - 0.5) * 13 * p.relief;
       const mountainBelts = ridgeShape * 4.8 * p.ridgeStrength;
       const surfaceDetail = (detail - 0.5) * 2.1 * p.roughness;
-      return continentalMass + rollingLand + mountainBelts + surfaceDetail - 0.7 + p.offset;
+      return (continentalMass + rollingLand + mountainBelts + surfaceDetail - 0.7 + p.offset) * WORLD_RELIEF_SCALE;
     }
     let WORLD_UP, WORLD_X, surfaceNormal, verticalOffset = 0, spawnYaw = 0.25;
     function surfaceFrame(normal) {
@@ -331,7 +338,7 @@
       spawnYaw = bestFacing;
       return best;
     }
-    function orientPlayer(forwardHint) {
+    function orientPlayer(forwardHint, blend = 1) {
       if (!player) return;
       const frame = surfaceFrame(surfaceNormal);
       const forward = forwardHint ? forwardHint.clone() : frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw));
@@ -339,7 +346,11 @@
       if (forward.lengthSq() < 0.0001) forward.copy(frame.north);
       const right = new THREE.Vector3().crossVectors(surfaceNormal, forward).normalize();
       const correctedForward = new THREE.Vector3().crossVectors(right, surfaceNormal).normalize();
-      player.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, surfaceNormal, correctedForward));
+      const target = new THREE.Quaternion().setFromRotationMatrix(
+        new THREE.Matrix4().makeBasis(right, surfaceNormal, correctedForward)
+      );
+      if (blend >= 0.999) player.quaternion.copy(target);
+      else player.quaternion.slerp(target, clamp(blend, 0, 1));
     }
 
     let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight;
@@ -349,9 +360,13 @@
     let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null;
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
-    let cameraYaw = 0.25, cameraPitch = 0.38, cameraDistance = 10.5;
+    let cameraYaw = 0.25, cameraYawTarget = 0.25;
+    let cameraPitch = 0.38, cameraPitchTarget = 0.38;
+    let cameraDistance = 14, cameraDistanceTarget = 14;
     let joystickPointer = null, cameraPointer = null;
-    let moveInput = { x: 0, y: 0 };
+    let cameraTouches = new Map(), pinchStartDistance = 0, pinchStartZoom = 14;
+    let sprintHeld = false;
+    let moveInput = { x: 0, y: 0 }, smoothedMove = { x: 0, y: 0 };
     const keys = new Set();
     let toastTimer = 0;
 
@@ -367,6 +382,8 @@
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
     const jumpButton = document.getElementById('jump');
+    const sprintButton = document.getElementById('sprint');
+    const cameraResetButton = document.getElementById('camera-reset');
     const planetModal = document.getElementById('planet-modal');
     const planetInput = document.getElementById('planet-id-input');
     const planetPreview = document.getElementById('planet-preview');
@@ -514,15 +531,15 @@
     function terrainColor(height, normalDot) {
       const palette = activePlanet.biome;
       const color = new THREE.Color(palette.low);
-      color.lerp(new THREE.Color(palette.mid), clamp((height + 5) / 16, 0, 1));
-      color.lerp(new THREE.Color(palette.high), clamp((height - 7) / 13, 0, 1));
+      color.lerp(new THREE.Color(palette.mid), clamp((height + 40) / 128, 0, 1));
+      color.lerp(new THREE.Color(palette.high), clamp((height - 56) / 104, 0, 1));
       if (normalDot < 0.985) color.lerp(new THREE.Color(palette.rock), clamp((0.985 - normalDot) * 17, 0, 1));
-      if (activePlanet.hasOcean && height >= activePlanet.seaLevel && height < activePlanet.seaLevel + 3.2) {
+      if (activePlanet.hasOcean && height >= activePlanet.seaLevel && height < activePlanet.seaLevel + 25.6) {
         const beach = new THREE.Color(activePlanet.temperature < -45 ? 0xb9d0c5 : 0xc8b58a);
-        color.lerp(beach, 1 - (height - activePlanet.seaLevel) / 3.2);
+        color.lerp(beach, 1 - (height - activePlanet.seaLevel) / 25.6);
       }
-      const snowLine = activePlanet.temperature < -70 ? 5 : 15;
-      if (height > snowLine) color.lerp(new THREE.Color(palette.snow), clamp((height - snowLine) / 9, 0, 1));
+      const snowLine = (activePlanet.temperature < -70 ? 5 : 15) * WORLD_RELIEF_SCALE;
+      if (height > snowLine) color.lerp(new THREE.Color(palette.snow), clamp((height - snowLine) / 72, 0, 1));
       return color;
     }
 
@@ -555,7 +572,7 @@
         directions[i] = direction.clone();
         heights[i] = h;
         positions.setXYZ(i, direction.x * (PLANET_RADIUS + h), direction.y * (PLANET_RADIUS + h), direction.z * (PLANET_RADIUS + h));
-        if (i > 0 && i % 256 === 0) {
+        if (i > 0 && i % 1024 === 0) {
           startButton.textContent = 'توليد التضاريس: ' + Math.round(i / positions.count * 65) + '%';
           await new Promise(resolve => requestAnimationFrame(resolve));
         }
@@ -609,7 +626,7 @@
           oceanTexture = new THREE.CanvasTexture(waveCanvas);
           oceanTexture.wrapS = THREE.RepeatWrapping;
           oceanTexture.wrapT = THREE.RepeatWrapping;
-          oceanTexture.repeat.set(2, 1);
+          oceanTexture.repeat.set(8, 4);
           oceanTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
         }
         const waterMaterial = new THREE.MeshPhongMaterial({
@@ -622,7 +639,7 @@
         scene.add(oceanMesh);
       }
 
-      const atmosphereGeometry = new THREE.SphereGeometry(PLANET_RADIUS + 13,
+      const atmosphereGeometry = new THREE.SphereGeometry(PLANET_RADIUS + 104,
         LOW_END_DEVICE ? 40 : 64, LOW_END_DEVICE ? 20 : 32);
       const atmosphereMaterial = new THREE.MeshBasicMaterial({
         color: activePlanet.biome.horizon, side: THREE.BackSide, transparent: true,
@@ -651,16 +668,16 @@
       else if (biomeName === 'صحارى كهرمانية') floraFactor = 0.32;
       else if (biomeName === 'صفائح جليدية') floraFactor = 0.44;
 
-      const floraCount = Math.max(28, Math.floor((LOW_END_DEVICE ? 250 : 390) * floraFactor));
-      const grassCount = Math.max(70, Math.floor((LOW_END_DEVICE ? 520 : 900) * floraFactor));
-      const rockCount = LOW_END_DEVICE ? 170 : 280;
+      const floraCount = Math.max(28, Math.floor((LOW_END_DEVICE ? 190 : 320) * floraFactor));
+      const grassCount = Math.max(70, Math.floor((LOW_END_DEVICE ? 620 : 1050) * floraFactor));
+      const rockCount = LOW_END_DEVICE ? 145 : 230;
       const mineralNodeTarget = LOW_END_DEVICE ? 96 : 150;
       const cloudCount = LOW_END_DEVICE ? 45 : 72;
       const up = new THREE.Vector3(0, 1, 0);
       const dummy = new THREE.Object3D();
       const localFrame = surfaceFrame(surfaceNormal);
 
-      function sampleDryLand(minMeters = 8, maxMeters = 132) {
+      function sampleDryLand(minMeters = 18, maxMeters = 520) {
         for (let attempt = 0; attempt < 64; attempt++) {
           const distance = Math.sqrt(minMeters * minMeters +
             random() * (maxMeters * maxMeters - minMeters * minMeters));
@@ -705,9 +722,9 @@
 
       let floraAdded = 0, grassAdded = 0, rocksAdded = 0, mineralsAdded = 0;
       for (let attempt = 0; attempt < floraCount * 9 && floraAdded < floraCount; attempt++) {
-        const sample = sampleDryLand(9, 132);
+        const sample = sampleDryLand(36, 600);
         if (sample) {
-          const height = 3.5 + random() * 3.6;
+          const height = 7 + random() * 7;
           const rotation = random() * Math.PI * 2;
           placeRadialInstance(trunkMesh, floraAdded, sample.normal, sample.height, height * 0.5,
             [1.12, height, 1.12], rotation, dummy, up);
@@ -724,7 +741,7 @@
       }
 
       for (let attempt = 0; attempt < grassCount * 8 && grassAdded < grassCount; attempt++) {
-        const sample = sampleDryLand(5, 110);
+        const sample = sampleDryLand(20, 520);
         if (sample) {
           const height = 0.55 + random() * 0.8;
           placeRadialInstance(grassMesh, grassAdded, sample.normal, sample.height, height * 0.42,
@@ -736,7 +753,7 @@
       }
 
       for (let attempt = 0; attempt < rockCount * 9 && rocksAdded < rockCount; attempt++) {
-        const sample = sampleDryLand(8, 132);
+        const sample = sampleDryLand(24, 640);
         if (sample) {
           const size = 0.55 + random() * 1.35;
           placeRadialInstance(rockMesh, rocksAdded, sample.normal, sample.height, size * 0.38,
@@ -750,8 +767,8 @@
       for (let attempt = 0; attempt < mineralNodeTarget * 12 && mineralsAdded < mineralNodeTarget; attempt++) {
         const starterCluster = mineralsAdded < 18;
         const nearCluster = mineralsAdded < 52;
-        const sample = starterCluster ? sampleDryLand(7, 30) :
-          (nearCluster ? sampleDryLand(24, 66) : sampleDryLand(60, 135));
+        const sample = starterCluster ? sampleDryLand(18, 70) :
+          (nearCluster ? sampleDryLand(70, 220) : sampleDryLand(220, 1150));
         if (sample) {
           const size = 0.95 + random() * 0.62;
           placeRadialInstance(crystals, mineralsAdded, sample.normal, sample.height, size * 2.22,
@@ -785,7 +802,7 @@
         const puff = i % 3;
         const offsetA = (puff - 1) * (5 + random() * 2);
         const offsetB = (random() - 0.5) * 7;
-        dummy.position.copy(normal).multiplyScalar(PLANET_RADIUS + terrainHeight(normal) + 29 + random() * 3);
+        dummy.position.copy(normal).multiplyScalar(PLANET_RADIUS + terrainHeight(normal) + 29 * WORLD_RELIEF_SCALE + random() * 24);
         dummy.position.addScaledVector(frame.east, offsetA).addScaledVector(frame.north, offsetB);
         dummy.quaternion.setFromUnitVectors(up, normal);
         dummy.scale.set(5.5 + random() * 5, 1.8 + random() * 1.8, 4.2 + random() * 4.5);
@@ -821,10 +838,10 @@
       resourceHint.classList.remove('show');
       mineralsCollected = 0;
       mineralCount.textContent = '0';
-      trackedMineral = nearestMineral(145)?.node || null;
+      trackedMineral = nearestMineral(1200)?.node || null;
     }
 
-    function nearestMineral(maxDistance = 140) {
+    function nearestMineral(maxDistance = 1200) {
       let nearest = null, nearestDistance = Infinity;
       for (const node of mineralNodes) {
         if (node.collected) continue;
@@ -854,7 +871,7 @@
       const distance = Math.acos(clamp(surfaceNormal.dot(trackedMineral.normal), -1, 1)) * PLANET_RADIUS;
       if (mineralMarker) {
         mineralMarker.position.copy(trackedMineral.normal).multiplyScalar(
-          PLANET_RADIUS + terrainHeight(trackedMineral.normal) + 7.2 + Math.sin(elapsed * 2.2) * 0.45
+          PLANET_RADIUS + terrainHeight(trackedMineral.normal) + 18 + Math.sin(elapsed * 2.2) * 1.1
         );
         mineralMarker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), trackedMineral.normal);
         mineralMarker.visible = true;
@@ -871,7 +888,7 @@
 
     function scanForMineral() {
       if (!running || traveling) return;
-      const found = nearestMineral(145);
+      const found = nearestMineral(1200);
       if (!found) {
         trackedMineral = null;
         resourceHint.classList.remove('show');
@@ -994,8 +1011,8 @@
       surfaceNormal = new THREE.Vector3(0, 0, 1);
       const viewport = getGameViewport();
       scene = new THREE.Scene();
-      scene.fog = new THREE.Fog(activePlanet.biome.fog, 48, 210);
-      camera = new THREE.PerspectiveCamera(62, viewport.width / viewport.height, .1, 900);
+      scene.fog = new THREE.Fog(activePlanet.biome.fog, 130, 1500);
+      camera = new THREE.PerspectiveCamera(66, viewport.width / viewport.height, .1, 6000);
       renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1.2 : (IS_TOUCH_DEVICE ? 1.5 : 1.8)));
       renderer.setSize(viewport.width, viewport.height);
@@ -1009,12 +1026,12 @@
       startButton.textContent = "تهيئة سطح الكوكب...";
       await createPlanetSurface();
       surfaceNormal.copy(findSpawnNormal());
-      cameraYaw = spawnYaw;
+      cameraYaw = cameraYawTarget = spawnYaw;
       startButton.textContent = "إنشاء الحياة والموارد...";
       await createPlanetResources();
       applyPlanetEnvironment();
       createAstronaut();
-      camera.position.set(player.position.x + 5, player.position.y + 6, player.position.z + 9);
+      camera.position.set(player.position.x + 7, player.position.y + 8, player.position.z + 12);
       updateCamera(1);
       window.addEventListener('resize', onResize, { passive: true });
       window.addEventListener('orientationchange', () => setTimeout(onResize, 180), { passive: true });
@@ -1042,43 +1059,83 @@
         if (e.key.toLowerCase() === 'f' && running) collectTrackedMineral();
       }, { passive: false });
       window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-      window.addEventListener('blur', () => keys.clear());
+      window.addEventListener('blur', () => {
+        keys.clear(); sprintHeld = false; sprintButton.classList.remove('held');
+        cameraTouches.clear(); cameraPointer = null; joystickPointer = null;
+        moveInput.x = moveInput.y = 0;
+      });
 
       renderer.domElement.addEventListener('pointerdown', e => {
-        if (!running || e.pointerType === 'mouse' && e.button !== 0) return;
-        cameraPointer = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        if (!running) return;
+        if (e.pointerType === 'mouse') {
+          if (e.button !== 0 && e.button !== 2) return;
+          cameraPointer = { id: e.pointerId, x: e.clientX, y: e.clientY, type: 'mouse' };
+        } else {
+          cameraTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          const portraitFallback = window.innerHeight > window.innerWidth;
+          if (cameraTouches.size === 1 && (portraitFallback || e.clientX > window.innerWidth * 0.40)) {
+            cameraPointer = { id: e.pointerId, x: e.clientX, y: e.clientY, type: 'touch' };
+          } else if (cameraTouches.size >= 2) {
+            const points = [...cameraTouches.values()];
+            pinchStartDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+            pinchStartZoom = cameraDistanceTarget; cameraPointer = null;
+          }
+        }
         renderer.domElement.setPointerCapture(e.pointerId);
       });
+
       renderer.domElement.addEventListener('pointermove', e => {
+        if (e.pointerType === 'touch' && cameraTouches.has(e.pointerId)) {
+          cameraTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (cameraTouches.size >= 2) {
+            const points = [...cameraTouches.values()];
+            const pinchDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+            if (pinchStartDistance > 0) cameraDistanceTarget = clamp(pinchStartZoom * pinchStartDistance / Math.max(35, pinchDistance), 8, 28);
+            return;
+          }
+        }
         if (!cameraPointer || cameraPointer.id !== e.pointerId) return;
-        const screenDx = e.clientX - cameraPointer.x;
-        const screenDy = e.clientY - cameraPointer.y;
-        cameraPointer.x = e.clientX;
-        cameraPointer.y = e.clientY;
+        const screenDx = e.clientX - cameraPointer.x, screenDy = e.clientY - cameraPointer.y;
+        cameraPointer.x = e.clientX; cameraPointer.y = e.clientY;
         const portraitFallback = window.innerHeight > window.innerWidth;
         const dx = portraitFallback ? screenDy : screenDx;
         const dy = portraitFallback ? -screenDx : screenDy;
-        cameraYaw -= dx * .006;
-        cameraPitch = clamp(cameraPitch + dy * .004, .10, 1.28);
+        const sensitivity = e.pointerType === 'mouse' ? 0.0058 : 0.0072;
+        cameraYawTarget -= dx * sensitivity;
+        cameraPitchTarget = clamp(cameraPitchTarget + dy * sensitivity * 0.78, 0.12, 1.22);
       });
-      const endCamera = e => { if (cameraPointer && cameraPointer.id === e.pointerId) cameraPointer = null; };
+
+      const endCamera = e => {
+        if (e.pointerType === 'touch') {
+          cameraTouches.delete(e.pointerId);
+          if (cameraTouches.size === 1) {
+            const [id, point] = cameraTouches.entries().next().value;
+            cameraPointer = { id, x: point.x, y: point.y, type: 'touch' };
+            pinchStartDistance = 0;
+          } else if (cameraTouches.size === 0) {
+            cameraPointer = null; pinchStartDistance = 0;
+          }
+        } else if (cameraPointer && cameraPointer.id === e.pointerId) cameraPointer = null;
+      };
       renderer.domElement.addEventListener('pointerup', endCamera);
       renderer.domElement.addEventListener('pointercancel', endCamera);
+      renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+      renderer.domElement.addEventListener('wheel', e => {
+        e.preventDefault();
+        cameraDistanceTarget = clamp(cameraDistanceTarget + Math.sign(e.deltaY) * 1.35, 8, 28);
+      }, { passive: false });
 
       joystick.addEventListener('pointerdown', e => {
         if (!running) return;
-        e.preventDefault();
-        joystickPointer = e.pointerId;
-        joystick.setPointerCapture(e.pointerId);
-        updateJoystick(e);
+        e.preventDefault(); joystickPointer = e.pointerId;
+        joystick.setPointerCapture(e.pointerId); updateJoystick(e);
       });
       joystick.addEventListener('pointermove', e => {
         if (joystickPointer === e.pointerId) updateJoystick(e);
       });
       const endStick = e => {
         if (joystickPointer !== e.pointerId) return;
-        joystickPointer = null;
-        moveInput.x = moveInput.y = 0;
+        joystickPointer = null; moveInput.x = moveInput.y = 0;
         stick.style.transform = 'translate(0,0)';
       };
       joystick.addEventListener('pointerup', endStick);
@@ -1086,23 +1143,36 @@
       jumpButton.addEventListener('pointerdown', e => { e.preventDefault(); if (running) jump(); });
       scanButton.addEventListener('pointerdown', e => { e.preventDefault(); scanForMineral(); });
       collectButton.addEventListener('pointerdown', e => { e.preventDefault(); collectTrackedMineral(); });
+      sprintButton.addEventListener('pointerdown', e => {
+        e.preventDefault(); sprintHeld = true; sprintButton.classList.add('held');
+        sprintButton.setPointerCapture(e.pointerId);
+      });
+      const endSprint = () => { sprintHeld = false; sprintButton.classList.remove('held'); };
+      sprintButton.addEventListener('pointerup', endSprint);
+      sprintButton.addEventListener('pointercancel', endSprint);
+      cameraResetButton.addEventListener('pointerdown', e => { e.preventDefault(); recenterCamera(); });
     }
 
     function updateJoystick(e) {
       const rect = joystick.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
+      const centerX = rect.left + rect.width / 2, centerY = rect.top + rect.height / 2;
       let dx = e.clientX - centerX, dy = e.clientY - centerY;
       if (window.innerHeight > window.innerWidth) {
-        const screenDx = dx;
-        dx = dy;
-        dy = -screenDx;
+        const screenDx = dx; dx = dy; dy = -screenDx;
       }
-      const max = 36, length = Math.hypot(dx, dy);
+      const max = Math.max(20, rect.width * 0.5 - stick.offsetWidth * 0.5 - 5);
+      const length = Math.hypot(dx, dy);
       if (length > max) { dx = dx / length * max; dy = dy / length * max; }
-      moveInput.x = dx / max;
-      moveInput.y = dy / max;
+      moveInput.x = dx / max; moveInput.y = dy / max;
       stick.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+
+    function recenterCamera() {
+      if (!player) return;
+      const frame = surfaceFrame(surfaceNormal);
+      const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(player.quaternion).normalize();
+      cameraYawTarget = Math.atan2(facing.dot(frame.east), facing.dot(frame.north));
+      cameraPitchTarget = 0.38; cameraDistanceTarget = 14;
     }
 
     function jump() {
@@ -1126,44 +1196,58 @@
 
     function updatePlayer(dt) {
       const input = getMovementInput();
+      const currentAmount = Math.hypot(smoothedMove.x, smoothedMove.y);
+      const response = input.amount > currentAmount ? 8.5 : 13.5;
+      const blend = 1 - Math.exp(-response * dt);
+      smoothedMove.x += (input.strafe - smoothedMove.x) * blend;
+      smoothedMove.y += (input.forward - smoothedMove.y) * blend;
+      const moveAmount = Math.min(1, Math.hypot(smoothedMove.x, smoothedMove.y));
       const frame = surfaceFrame(surfaceNormal);
       const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
       const right = new THREE.Vector3().crossVectors(surfaceNormal, forward).normalize();
-      const direction = forward.clone().multiplyScalar(input.forward).addScaledVector(right, input.strafe);
-      const distance = PLAYER_SPEED * input.amount * dt * (onGround ? 1 : 0.72);
-      if (input.amount > 0.03 && distance > 0) {
+      const direction = forward.clone().multiplyScalar(smoothedMove.y).addScaledVector(right, smoothedMove.x);
+      const sprinting = sprintHeld || keys.has('shift');
+      const speed = PLAYER_SPEED * (sprinting ? 1.72 : 1);
+      const distance = speed * moveAmount * dt * (onGround ? 1 : 0.72);
+      if (moveAmount > 0.025 && distance > 0) {
         direction.normalize();
         const oldNormal = surfaceNormal.clone();
-        const angle = distance / PLANET_RADIUS;
-        const c = Math.cos(angle), s = Math.sin(angle);
+        const angle = distance / PLANET_RADIUS, c = Math.cos(angle), s = Math.sin(angle);
         surfaceNormal.copy(oldNormal).multiplyScalar(c).addScaledVector(direction, s).normalize();
         const carriedForward = direction.multiplyScalar(c).addScaledVector(oldNormal, -s).normalize();
-        orientPlayer(carriedForward);
+        orientPlayer(carriedForward, 1 - Math.exp(-14 * dt));
       }
       verticalVelocity -= BASE_GRAVITY * activePlanet.gravityFactor * dt;
       verticalOffset += verticalVelocity * dt;
       if (verticalOffset <= 0) { verticalOffset = 0; verticalVelocity = 0; onGround = true; }
       else onGround = false;
       player.position.copy(surfacePoint(surfaceNormal, verticalOffset));
-      const walk = input.amount > .04 && onGround ? Math.sin(elapsed * 10.5) * .58 * input.amount : 0;
+      const walk = moveAmount > .035 && onGround ? Math.sin(elapsed * (sprinting ? 14 : 10.5)) * .58 * moveAmount : 0;
       leftLeg.rotation.x = walk; rightLeg.rotation.x = -walk;
       leftArm.rotation.x = -walk * .72; rightArm.rotation.x = walk * .72;
       if (!onGround) {
         leftLeg.rotation.x = .28; rightLeg.rotation.x = -.18;
         leftArm.rotation.x = -.35; rightArm.rotation.x = -.35;
       }
-      status.textContent = onGround ? (input.amount > .04 ? 'تستكشف سطح الكوكب…' : 'استكشف العالم الكروي من حولك') : 'تقفز فوق السطح…';
+      status.textContent = !onGround ? 'تقفز فوق السطح…' :
+        (moveAmount > .04 ? (sprinting ? 'تركض لاستكشاف العالم…' : 'تستكشف سطح الكوكب…') : 'استكشف العالم الكروي من حولك');
     }
 
     function updateCamera(dt) {
+      const yawDelta = Math.atan2(Math.sin(cameraYawTarget - cameraYaw), Math.cos(cameraYawTarget - cameraYaw));
+      cameraYaw += yawDelta * (1 - Math.exp(-15 * dt));
+      cameraPitch += (cameraPitchTarget - cameraPitch) * (1 - Math.exp(-13 * dt));
+      cameraDistance += (cameraDistanceTarget - cameraDistance) * (1 - Math.exp(-9 * dt));
       const frame = surfaceFrame(surfaceNormal);
       const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
       const target = player.position.clone().addScaledVector(surfaceNormal, 2.0);
       const horizontal = Math.cos(cameraPitch) * cameraDistance;
       const desired = target.clone().addScaledVector(forward, -horizontal).addScaledVector(surfaceNormal, Math.sin(cameraPitch) * cameraDistance);
-      camera.position.lerp(desired, 1 - Math.exp(-7.5 * dt));
-      camera.up.copy(surfaceNormal);
-      camera.lookAt(target);
+      camera.position.lerp(desired, 1 - Math.exp(-10 * dt));
+      const cameraNormal = camera.position.clone().normalize();
+      const minimumCameraRadius = PLANET_RADIUS + terrainHeight(cameraNormal) + 1.2;
+      if (camera.position.length() < minimumCameraRadius) camera.position.copy(cameraNormal.multiplyScalar(minimumCameraRadius));
+      camera.up.copy(surfaceNormal); camera.lookAt(target);
       sky.position.copy(camera.position);
       sunSprite.position.set(camera.position.x - 156, camera.position.y + 204, camera.position.z - 153);
       sunLight.target.position.copy(player.position);
@@ -1219,14 +1303,17 @@
       try {
         await createPlanetSurface();
         surfaceNormal.copy(findSpawnNormal());
-        cameraYaw = spawnYaw;
+        cameraYaw = cameraYawTarget = spawnYaw;
         await createPlanetResources();
         verticalOffset = 0;
         verticalVelocity = 0;
         onGround = true;
         player.position.copy(surfacePoint(surfaceNormal));
-        cameraYaw = spawnYaw;
-        cameraPitch = 0.38;
+        cameraYaw = cameraYawTarget = spawnYaw;
+        cameraPitch = cameraPitchTarget = 0.38;
+        cameraDistanceTarget = 14;
+        cameraTouches.clear(); cameraPointer = null; pinchStartDistance = 0;
+        smoothedMove.x = smoothedMove.y = 0;
         orientPlayer(null);
         applyPlanetEnvironment();
         updateCamera(1);
