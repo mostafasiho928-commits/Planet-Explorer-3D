@@ -733,6 +733,19 @@
         });
         shipRoot = null;
       }
+      if (planeRoot) {
+        scene.remove(planeRoot);
+        planeRoot.traverse(node => {
+          if (node.geometry) node.geometry.dispose();
+          if (node.material) {
+            if (Array.isArray(node.material)) node.material.forEach(m => m.dispose());
+            else node.material.dispose();
+          }
+        });
+        planeRoot = null;
+      }
+      clearCombatEntities();
+      planeNormal = null; planeMode = false; planeThrottle = 0; planeSpeed = 0;
       caveRoot = null; caveNormal = null; roverNormal = null; shipNormal = null;
       caveMode = false; drivingRover = false; shipMode = false; shipAirborne = false; shipCanExit = false;
       oreMesh = null; oreNodes = [];
@@ -1151,6 +1164,7 @@
       missionLabel.textContent = 'مهمة الاستكشاف: اجمع 5 بلورات';
       trackedMineral = nearestMineral(4800)?.node || null;
       loadPlanetProgress();
+      createEnemyDrones();
       mineButton.classList.add('hidden');
       caveButton.classList.add('hidden');
       vehicleButton.classList.add('hidden');
@@ -1976,6 +1990,8 @@
       createAstronaut();
       createRover();
       createShip();
+      createPlane();
+      homeNormal = surfaceNormal.clone();
       camera.position.set(player.position.x + 7, player.position.y + 8, player.position.z + 12);
       updateCamera(1);
       window.addEventListener('resize', onResize, { passive: true });
@@ -2402,6 +2418,7 @@
       try {
         await createPlanetSurface();
         surfaceNormal.copy(findSpawnNormal());
+        homeNormal = surfaceNormal.clone();
         cameraYaw = cameraYawTarget = spawnYaw;
         await createPlanetResources();
         verticalOffset = 0;
@@ -2409,9 +2426,11 @@
         onGround = true;
         player.position.copy(surfacePoint(surfaceNormal));
         player.visible = true;
-        caveMode = false; drivingRover = false; shipMode = false; shipAirborne = false; shipCanExit = false;
+        caveMode = false; drivingRover = false; shipMode = false; shipAirborne = false; shipCanExit = false; planeMode = false;
         createRover();
         createShip();
+        createPlane();
+        homeNormal = surfaceNormal.clone();
         cameraYaw = cameraYawTarget = spawnYaw;
         cameraPitch = cameraPitchTarget = -0.12;
         cameraDistance = cameraDistanceTarget = 18;
