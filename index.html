@@ -72,7 +72,7 @@
     #resource-hint { position: absolute; z-index: 7; left: 50%; top: 112px; transform: translateX(-50%); max-width: min(80vw, 390px); padding: 9px 14px; border-radius: 13px; color: #e8fbff; background: rgba(4,20,29,.82); border: 1px solid rgba(111,218,226,.24); font-size: 11px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; }
     #resource-hint.show { opacity: 1; }
     #collect { border-color: rgba(243,201,119,.72); color: #fff0c5; background: rgba(104,70,24,.82); }
-    .action.hidden { display: none !important; }
+    .action.hidden, .hidden { display: none !important; }
     #help { position: absolute; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); padding: 9px 12px; border-radius: 13px; color: var(--muted); font-size: 10px; line-height: 1.8; pointer-events: none; }
     #help b { color: #e6f8fb; font-weight: 600; }
     #joystick { position: absolute; z-index: 8; left: max(22px, env(safe-area-inset-left)); bottom: max(22px, env(safe-area-inset-bottom)); width: 132px; height: 132px; border: 1px solid rgba(220,245,255,.28); border-radius: 50%; background: radial-gradient(circle, rgba(38,91,111,.34), rgba(5,18,29,.48)); box-shadow: inset 0 0 26px rgba(0,0,0,.2), 0 8px 22px rgba(0,0,0,.16); display: none; touch-action: none; }
@@ -1832,6 +1832,12 @@
       }
       healthFill.style.width = playerHealth + '%';
       healthValue.textContent = String(Math.round(playerHealth));
+      const activeBoss = enemyDrones.find(enemy => enemy.isBoss && enemy.alive);
+      bossHud.classList.toggle('hidden', !activeBoss);
+      if (activeBoss) {
+        bossFill.style.width = Math.max(0, activeBoss.health / activeBoss.maxHealth * 100) + '%';
+        bossHealthLabel.textContent = String(activeBoss.health);
+      }
     }
 
     function shipAction() {
@@ -1896,7 +1902,9 @@
       } else vehicleButton.classList.add('hidden');
       if (planeMode) {
         planeButton.classList.remove('hidden');
-        planeButton.querySelector('small').textContent = planeLanded && planeSpeed < 28 ? 'ترجل' : 'هبوط';
+        planeButton.querySelector('small').textContent = planeLanded
+          ? (planeSpeed < 28 ? 'ترجل' : 'قيادة')
+          : 'هبوط';
         descendButton.classList.remove('hidden');
       } else if (planeNormal) {
         const planeDistance = Math.acos(clamp(surfaceNormal.dot(planeNormal), -1, 1)) * PLANET_RADIUS;
@@ -1908,7 +1916,7 @@
         descendButton.classList.add('hidden');
       }
       const nearbyThreat = enemyDrones.some(enemy => enemy.alive &&
-        Math.acos(clamp(surfaceNormal.dot(enemy.normal), -1, 1)) * PLANET_RADIUS < 750);
+        Math.acos(clamp(surfaceNormal.dot(enemy.normal), -1, 1)) * PLANET_RADIUS < 1050);
       fireButton.classList.toggle('hidden', !nearbyThreat && !planeMode);
       const planeDistanceForShop = planeNormal ? Math.acos(clamp(surfaceNormal.dot(planeNormal), -1, 1)) * PLANET_RADIUS : Infinity;
       const canRepair = playerHealth < 100 && salvageCredits >= 20;
