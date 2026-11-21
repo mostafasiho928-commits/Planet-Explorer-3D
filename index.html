@@ -300,7 +300,7 @@
     let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight;
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh;
-    let running = false, lastTime = 0, elapsed = 0;
+    let running = false, initializing = false, traveling = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraPitch = 0.38, cameraDistance = 10.5;
     let joystickPointer = null, cameraPointer = null;
@@ -793,17 +793,23 @@
       return Number.isSafeInteger(id) && id >= 1 && id <= PLANET_COUNT ? id : null;
     }
 
-    function travelToPlanet(id) {
+    async function travelToPlanet(id) {
+      if (traveling) return;
       if (!validatedPlanetId(id)) {
         showToast('رقم الكوكب يجب أن يكون بين 1 و150,000,000');
         return;
       }
+      traveling = true;
+      const resume = running;
+      running = false;
       activePlanet = generatePlanet(id);
       currentPlanetId = id;
-      try { localStorage.setItem('madar.lastPlanetId', String(id)); } catch (_) { /* التخزين اختياري */ }
+      try { localStorage.setItem('madar.lastPlanetId', String(id)); } catch (_) { }
       updatePlanetInfo();
-      if (scene && player) {
-        createPlanetSurface();
+      closePlanetMap();
+      status.textContent = 'جارٍ توليد العالم الجديد...';
+      try {
+        await createPlanetSurface();
         surfaceNormal.copy(findSpawnNormal());
         verticalOffset = 0;
         verticalVelocity = 0;
@@ -814,9 +820,15 @@
         orientPlayer(null);
         applyPlanetEnvironment();
         updateCamera(1);
+        showToast('تم الوصول إلى ' + activePlanet.name + ' · الكوكب ' + formatPlanetId(id));
+      } catch (error) {
+        console.error(error);
+        showToast('تعذر توليد الكوكب. حاول مرة أخرى.');
+      } finally {
+        traveling = false;
+        running = resume;
+        if (running) { lastTime = performance.now(); requestAnimationFrame(animate); }
       }
-      closePlanetMap();
-      showToast(`تم الوصول إلى ${activePlanet.name} · الكوكب ${formatPlanetId(id)}`);
     }
 
     function randomPlanetId() {
@@ -842,9 +854,9 @@
     document.getElementById('travel-planet').addEventListener('click', () => {
       const id = validatedPlanetId(planetInput.value);
       if (id === null) { showToast('أدخل رقماً صحيحاً ضمن المجال المحدد'); return; }
-      travelToPlanet(id);
+      void travelToPlanet(id);
     });
-    document.getElementById('random-planet').addEventListener('click', () => travelToPlanet(randomPlanetId()));
+    document.getElementById('random-planet').addEventListener('click', () => { void travelToPlanet(randomPlanetId()); });
     planetInput.addEventListener('input', () => {
       const id = validatedPlanetId(planetInput.value);
       if (id !== null) renderPlanetPreview(generatePlanet(id));
@@ -856,33 +868,49 @@
     planetModal.addEventListener('pointerdown', e => { if (e.target === planetModal) closePlanetMap(); });
     updatePlanetInfo();
 
-    async function enterFullscreen() {
+    function enterFullscreen() {
+      let request = Promise.resolve();
       try {
-        if (!document.fullscreenElement && game.requestFullscreen) await game.requestFullscreen({ navigationUI: 'hide' });
-      } catch (_) { /* قد يمنع المتصفح ملء الشاشة عند فتح الملف محلياً */ }
-      let locked = false;
-      try {
-        if (screen.orientation && screen.orientation.lock) {
-          await screen.orientation.lock('landscape');
-          locked = true;
+        if (!document.fullscreenElement && game.requestFullscreen) {
+          request = game.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
         }
-      } catch (_) { /* بعض المتصفحات لا تدعم قفل الاتجاه من صفحة عادية */ }
-      if (!locked && window.matchMedia('(orientation: portrait)').matches) {
-        showToast('للوضع الأفقي التلقائي: افتح اللعبة من GitHub Pages وثبّتها كتطبيق.');
-      }
+      } catch (_) { }
+      return request.then(async () => {
+        try {
+          if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
+        } catch (_) { /* قفل الاتجاه اختياري؛ إعداد التطبيق يطلب landscape */ }
+      });
     }
 
-    document.getElementById('start-button').addEventListener('click', async () => {
-      if (!scene && !init()) return;
-      await enterFullscreen();
-      startScreen.style.display = 'none';
-      running = true;
-      lastTime = performance.now();
-      requestAnimationFrame(animate);
-      showToast(`أهلاً بك على ${activePlanet.name}`);
+    startButton.addEventListener('click', async () => {
+      if (initializing || running) return;
+      initializing = true;
+      startButton.disabled = true;
+      startButton.textContent = 'بدء الاستكشاف...';
+      const fullscreenTask = enterFullscreen();
+      try {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        if (!scene) {
+          const ready = await init();
+          if (!ready) throw new Error('تعذر تهيئة مشهد اللعبة.');
+        }
+        await fullscreenTask;
+        startScreen.style.display = 'none';
+        running = true;
+        lastTime = performance.now();
+        requestAnimationFrame(animate);
+        showToast('أهلاً بك على ' + activePlanet.name);
+      } catch (error) {
+        console.error(error);
+        startButton.disabled = false;
+        startButton.textContent = 'إعادة المحاولة';
+        showToast('تعذر بدء اللعبة. تحقق من اتصال الإنترنت ودعم WebGL.');
+      } finally {
+        initializing = false;
+      }
     });
 
-    // لا تُنشأ الرسوميات قبل ضغط ابدأ، لتفادي تشغيل WebGL قبل تفاعل المستخدم.
+    // لا تُنشأ الرسوميات قبل ضغط ابدأ، لتفادي تشغيل WebGL قبل تفاعل المستخدم.    // لا تُنشأ الرسوميات قبل ضغط ابدأ، لتفادي تشغيل WebGL قبل تفاعل المستخدم.
   })();
   </script>
 </body>
