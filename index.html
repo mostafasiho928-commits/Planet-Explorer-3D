@@ -142,12 +142,12 @@
     </div>
     <div id="status" class="glass">استكشف الساحل والسهول</div>
     <div id="inventory" class="glass">بلورات: <strong id="mineral-count">0</strong> · خام: <strong id="ore-count">0</strong></div>
-    <div id="mission" class="glass">مهمة الاستكشاف: اجمع 5 بلورات</div>
+    <div id="mission" class="glass">1/5 حارس الحدود: أسقط 3 مسيّرات</div>
     <div id="survival" class="glass"><span>O₂</span><span id="oxygen-track"><i id="oxygen-fill"></i></span><strong id="oxygen-value">100%</strong><span>وقود</span><strong id="fuel-value">100%</strong></div>
     <div id="combat-hud" class="glass"><span>درع</span><span id="health-track"><i id="health-fill"></i></span><strong id="health-value">100</strong><span>إسقاطات</span><strong id="kill-count">0</strong><span>خردة</span><strong id="salvage-count">0</strong></div>
     <div id="reticle"></div>
     <div id="resource-hint" aria-live="polite"></div>
-    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز أو تشغيل المكوك<br>اسحب يميناً لتدوير الكاميرا يميناً، واسحب للأعلى للنظر إلى السماء · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة · <b>B</b> مكوك</div>
+    <div id="help" class="glass"><b>W A S D</b> حركة · <b>Shift</b> ركض/تسارع · <b>Space</b> قفز/صعود · <b>Ctrl</b> هبوط بالطائرة<br>اسحب يميناً للكاميرا · للأعلى للنظر إلى السماء · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة · <b>B</b> مكوك · <b>P</b> طائرة · <b>X</b> إطلاق</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
     <div id="actions">
       <button class="action" id="scan" aria-label="البحث عن المعادن" title="تحديد أقرب بلورة"><span>⌕</span><small>بحث</small></button>
@@ -170,7 +170,7 @@
         <h1>مرحباً أيها المستكشف</h1>
         <p>تجوّل في قارات شاسعة، وتسلق سلاسل جبلية وهضاباً صخرية، واعبر الوديان والسواحل تحت غيوم وطقس يتغير من كوكب إلى آخر. شاهد تعاقب النهار والليل والنجوم، امسح البلورات واستخرج الخام وقُد مركبات الاستكشاف وأكمل المهمة.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
-        <span class="note">اللعبة أفقية. العصا اليسرى للحركة، واسحب في النصف الأيمن لتدوير الكاميرا؛ اسحب للأعلى للنظر إلى السماء. زر التعدين يظهر قرب الصخور المعدنية، وزر الكهف عند المدخل، وزرا العربة والمكوك قربهما. اصعد المكوك ثم أقلع، واستخدم الزر نفسه لبدء الهبوط الآلي. راقب الأكسجين والوقود.</span>
+        <span class="note">اللعبة أفقية. الهاتف: العصا اليسرى للحركة؛ عند قيادة الطائرة ادفعها للأمام لزيادة السرعة ويميناً/يساراً للانعطاف. زر ↑ للصعود وزر ↓ للهبوط وزر إطلاق لمهاجمة المسيّرات. على الكمبيوتر: P للطائرة وX للإطلاق وSpace للصعود وCtrl للهبوط. أكمل مراحل الحملة واجمع قطع الخردة من الأعداء.</span>
       </div>
     </section>
     <section id="planet-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="planet-modal-title">
@@ -1722,12 +1722,18 @@
             playerHealth = 70; salvageCredits = Math.max(0, salvageCredits - 10);
             surfaceNormal.copy(homeNormal || surfaceNormal);
             verticalOffset = 0; verticalVelocity = 0; onGround = true;
-            planeMode = false; shipMode = false; drivingRover = false;
+            planeMode = false; planeLanded = true; planeLandingRequested = false;
+            shipMode = false; drivingRover = false;
             player.visible = true;
-            if (planeRoot) planeRoot.visible = true;
+            if (planeRoot) {
+              planeRoot.visible = true;
+              planeNormal = surfaceNormal.clone();
+              planeRoot.position.copy(surfacePoint(surfaceNormal, 1.5));
+            }
             if (shipRoot) shipRoot.visible = true;
             if (roverRoot) roverRoot.visible = true;
             player.position.copy(surfacePoint(surfaceNormal));
+            salvageCountLabel.textContent = String(salvageCredits);
             showToast('أُعيد إحياؤك في نقطة الهبوط وخسرت 10 قطع خردة');
           }
         }
