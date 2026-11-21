@@ -1096,6 +1096,7 @@
       oxygen = 100;
       missionLabel.textContent = 'مهمة الاستكشاف: اجمع 5 بلورات';
       trackedMineral = nearestMineral(4800)?.node || null;
+      loadPlanetProgress();
       mineButton.classList.add('hidden');
       caveButton.classList.add('hidden');
       vehicleButton.classList.add('hidden');
@@ -1137,6 +1138,64 @@
       dummy.matrix.compose(pos, quat, scale);
       oreMesh.setMatrixAt(node.instance, dummy.matrix);
       oreMesh.instanceMatrix.needsUpdate = true;
+      savePlanetProgress();
+    }
+
+    function savePlanetProgress() {
+      try {
+        const data = {
+          version: 1,
+          minerals: mineralNodes.filter(node => node.collected).map(node => node.instance),
+          ores: oreNodes.map(node => ({ instance: node.instance, hits: node.hits, collected: node.collected })),
+          mineralsCollected,
+          oresCollected,
+          missionCompleted
+        };
+        localStorage.setItem('madar.progress.' + activePlanet.id, JSON.stringify(data));
+      } catch (_) { /* storage is optional; a full quota must not stop gameplay */ }
+    }
+
+    function loadPlanetProgress() {
+      let data;
+      try {
+        data = JSON.parse(localStorage.getItem('madar.progress.' + activePlanet.id) || 'null');
+      } catch (_) { return; }
+      if (!data || data.version !== 1) return;
+      const collectedMinerals = new Set(Array.isArray(data.minerals) ? data.minerals : []);
+      const dummy = new THREE.Object3D();
+      for (const node of mineralNodes) {
+        if (!collectedMinerals.has(node.instance)) continue;
+        node.collected = true;
+        mineralMesh.getMatrixAt(node.instance, dummy.matrix);
+        const position = new THREE.Vector3(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3();
+        dummy.matrix.decompose(position, rotation, scale);
+        scale.setScalar(0.0001);
+        dummy.matrix.compose(position, rotation, scale);
+        mineralMesh.setMatrixAt(node.instance, dummy.matrix);
+      }
+      const savedOres = new Map((Array.isArray(data.ores) ? data.ores : []).map(item => [item.instance, item]));
+      for (const node of oreNodes) {
+        const saved = savedOres.get(node.instance);
+        if (!saved) continue;
+        node.hits = clamp(Math.round(saved.hits), 0, 3);
+        node.collected = !!saved.collected || node.hits <= 0;
+        oreMesh.getMatrixAt(node.instance, dummy.matrix);
+        const position = new THREE.Vector3(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3();
+        dummy.matrix.decompose(position, rotation, scale);
+        if (node.collected) scale.setScalar(0.0001);
+        else scale.multiplyScalar(Math.pow(0.82, 3 - node.hits));
+        dummy.matrix.compose(position, rotation, scale);
+        oreMesh.setMatrixAt(node.instance, dummy.matrix);
+      }
+      mineralMesh.instanceMatrix.needsUpdate = true;
+      oreMesh.instanceMatrix.needsUpdate = true;
+      mineralsCollected = clamp(Number(data.mineralsCollected) || 0, 0, mineralNodes.length);
+      oresCollected = clamp(Number(data.oresCollected) || 0, 0, oreNodes.length);
+      missionCompleted = !!data.missionCompleted;
+      mineralCount.textContent = String(mineralsCollected);
+      oreCountLabel.textContent = String(oresCollected);
+      trackedMineral = nearestMineral(4800)?.node || null;
+      updateMissionProgress();
     }
 
     function nearestMineral(maxDistance = 4800) {
@@ -1212,6 +1271,7 @@
       } else if (mineralsCollected >= 5 && oresCollected >= 3 && caveMode) {
         missionCompleted = true;
         missionLabel.textContent = 'اكتملت المهمة الكبرى — مستكشف محترف';
+        savePlanetProgress();
         showToast('اكتملت مهمة الكوكب الكبرى!');
       } else if (mineralsCollected >= 5 && oresCollected >= 3) {
         missionLabel.textContent = 'الهدف الأخير: ادخل الكهف';
@@ -1226,6 +1286,7 @@
       if (!caveRoot || !caveNormal) { showToast('لم يُعثر على كهف في هذا العالم'); return; }
       if (caveMode) {
         caveMode = false;
+        savePlanetProgress();
         surfaceNormal.copy(caveNormal);
         caveLocalPosition = null;
         verticalOffset = 0; verticalVelocity = 0; onGround = true;
@@ -1493,6 +1554,7 @@
       mineralCount.textContent = String(mineralsCollected);
       trackedMineral = null;
       collectButton.classList.add('hidden');
+      savePlanetProgress();
       resourceHint.textContent = 'تم جمع البلورة بنجاح';
       resourceHint.classList.add('show');
       updateMissionProgress();
@@ -2001,6 +2063,7 @@
       traveling = true;
       const resume = running;
       running = false;
+      savePlanetProgress();
       activePlanet = generatePlanet(id);
       currentPlanetId = id;
       try { localStorage.setItem('madar.lastPlanetId', String(id)); } catch (_) { }
