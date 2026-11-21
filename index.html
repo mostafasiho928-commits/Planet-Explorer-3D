@@ -475,16 +475,23 @@
     }
 
     async function createPlanetSurface() {
-      for (const mesh of [planetSurface, oceanMesh, atmosphereMesh]) {
-        if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
+      for (const mesh of [planetSurface, oceanMesh, atmosphereMesh, ...resourceMeshes]) {
+        if (mesh) {
+          scene.remove(mesh);
+          if (mesh.geometry) mesh.geometry.dispose();
+          if (mesh.material) mesh.material.dispose();
+        }
       }
-      planetSurface = oceanMesh = atmosphereMesh = null;
+      planetSurface = oceanMesh = atmosphereMesh = mineralMesh = null;
+      resourceMeshes = [];
+      mineralNodes = [];
 
       const geometry = new THREE.SphereGeometry(PLANET_RADIUS, PLANET_WIDTH_SEGMENTS, PLANET_HEIGHT_SEGMENTS);
       const positions = geometry.getAttribute('position');
       const directions = new Array(positions.count);
       const heights = new Float32Array(positions.count);
       const direction = new THREE.Vector3();
+
       for (let i = 0; i < positions.count; i++) {
         direction.fromBufferAttribute(positions, i).normalize();
         const h = terrainHeight(direction);
@@ -492,10 +499,11 @@
         heights[i] = h;
         positions.setXYZ(i, direction.x * (PLANET_RADIUS + h), direction.y * (PLANET_RADIUS + h), direction.z * (PLANET_RADIUS + h));
         if (i > 0 && i % 256 === 0) {
-          startButton.textContent = "توليد التضاريس: " + Math.round(i / positions.count * 100) + "%";
+          startButton.textContent = 'توليد التضاريس: ' + Math.round(i / positions.count * 65) + '%';
           await new Promise(resolve => requestAnimationFrame(resolve));
         }
       }
+
       positions.needsUpdate = true;
       geometry.computeVertexNormals();
       const normals = geometry.getAttribute('normal');
@@ -504,28 +512,33 @@
         const radial = directions[i];
         const normalDot = normals.getX(i) * radial.x + normals.getY(i) * radial.y + normals.getZ(i) * radial.z;
         const color = terrainColor(heights[i], normalDot);
-        colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
       }
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       geometry.computeBoundingSphere();
-      planetSurface = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.94, metalness: 0.02 }));
+      planetSurface = new THREE.Mesh(geometry,
+        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.94, metalness: 0.02 }));
       planetSurface.receiveShadow = true;
-      planetSurface.castShadow = true;
+      planetSurface.castShadow = !LOW_END_DEVICE;
       scene.add(planetSurface);
 
       if (activePlanet.hasOcean) {
-        const waterGeometry = new THREE.SphereGeometry(PLANET_RADIUS + activePlanet.seaLevel, LOW_END_DEVICE ? 64 : 96, LOW_END_DEVICE ? 32 : 48);
+        const waterGeometry = new THREE.SphereGeometry(PLANET_RADIUS + activePlanet.seaLevel,
+          LOW_END_DEVICE ? 64 : 96, LOW_END_DEVICE ? 32 : 48);
         const waterMaterial = new THREE.MeshPhongMaterial({
           color: activePlanet.biome.name === 'صحارى كهرمانية' ? 0x267d9b : 0x167da5,
           specular: 0x9bdcf0, shininess: 72
         });
         oceanMesh = new THREE.Mesh(waterGeometry, waterMaterial);
-        oceanMesh.receiveShadow = true;
+        oceanMesh.receiveShadow = !LOW_END_DEVICE;
         oceanMesh.renderOrder = 1;
         scene.add(oceanMesh);
       }
 
-      const atmosphereGeometry = new THREE.SphereGeometry(PLANET_RADIUS + 13, LOW_END_DEVICE ? 40 : 64, LOW_END_DEVICE ? 20 : 32);
+      const atmosphereGeometry = new THREE.SphereGeometry(PLANET_RADIUS + 13,
+        LOW_END_DEVICE ? 40 : 64, LOW_END_DEVICE ? 20 : 32);
       const atmosphereMaterial = new THREE.MeshBasicMaterial({
         color: activePlanet.biome.horizon, side: THREE.BackSide, transparent: true,
         opacity: clamp(activePlanet.atmosphere * 0.095, 0.025, 0.16), depthWrite: false
@@ -533,6 +546,144 @@
       atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
       atmosphereMesh.renderOrder = 2;
       scene.add(atmosphereMesh);
+    }
+
+    function placeRadialInstance(mesh, index, normal, groundHeight, altitude, scale, rotation, dummy, up) {
+      dummy.position.copy(normal).multiplyScalar(PLANET_RADIUS + groundHeight + altitude);
+      dummy.quaternion.setFromUnitVectors(up, normal);
+      dummy.rotateY(rotation);
+      dummy.scale.set(scale[0], scale[1], scale[2]);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(index, dummy.matrix);
+    }
+
+    async function createPlanetResources() {
+      const random = randomFromSeed((activePlanet.seed ^ 0xA511E9B3) >>> 0);
+      const biomeName = activePlanet.biome.name;
+      let floraFactor = 1;
+      if (biomeName === 'قشرة متشققة') floraFactor = 0.12;
+      else if (biomeName === 'أراضي بركانية') floraFactor = 0.42;
+      else if (biomeName === 'صحارى كهرمانية') floraFactor = 0.3;
+      else if (biomeName === 'صفائح جليدية') floraFactor = 0.38;
+
+      const floraCount = Math.max(24, Math.floor((LOW_END_DEVICE ? 360 : 620) * floraFactor));
+      const rockCount = LOW_END_DEVICE ? 240 : 420;
+      const mineralCount = LOW_END_DEVICE ? 58 : 96;
+      const up = new THREE.Vector3(0, 1, 0);
+      const dummy = new THREE.Object3D();
+
+      function sampleDryLand() {
+        for (let attempt = 0; attempt < 18; attempt++) {
+          const y = random() * 2 - 1;
+          const angle = random() * Math.PI * 2;
+          const ring = Math.sqrt(Math.max(0, 1 - y * y));
+          const normal = new THREE.Vector3(Math.cos(angle) * ring, y, Math.sin(angle) * ring);
+          const height = terrainHeight(normal);
+          if (!activePlanet.hasOcean || height > activePlanet.seaLevel + 1.6) return { normal, height };
+        }
+        return null;
+      }
+
+      let stemColor = 0x6b7446, leafColor = 0x5e9a62;
+      if (biomeName === 'صحارى كهرمانية') { stemColor = 0x96744c; leafColor = 0x91a95b; }
+      else if (biomeName === 'صفائح جليدية') { stemColor = 0x668b9b; leafColor = 0xb5e6ed; }
+      else if (biomeName === 'أراضي بركانية') { stemColor = 0x4c3b38; leafColor = 0xb05c49; }
+      else if (biomeName === 'مرتفعات بنفسجية') { stemColor = 0x5d526f; leafColor = 0xb09acb; }
+      else if (biomeName === 'غلاف فيروزي') { stemColor = 0x3f716c; leafColor = 0x76c5a9; }
+
+      const stemMesh = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(0.12, 0.19, 1, 5),
+        new THREE.MeshStandardMaterial({ color: stemColor, roughness: 0.95 }), floraCount);
+      const crownMesh = new THREE.InstancedMesh(
+        new THREE.ConeGeometry(0.68, 1.45, 6),
+        new THREE.MeshStandardMaterial({ color: leafColor, roughness: 0.88 }), floraCount);
+      const rockMesh = new THREE.InstancedMesh(
+        new THREE.DodecahedronGeometry(1, 0),
+        new THREE.MeshStandardMaterial({ color: activePlanet.biome.rock, roughness: 1 }), rockCount);
+      const crystals = new THREE.InstancedMesh(
+        new THREE.OctahedronGeometry(1, 0),
+        new THREE.MeshStandardMaterial({ color: 0x68dce5, roughness: 0.24, metalness: 0.58,
+          emissive: 0x153e48, emissiveIntensity: 0.65 }), mineralCount);
+
+      let floraAdded = 0, rocksAdded = 0, mineralsAdded = 0;
+      for (let attempt = 0; attempt < floraCount * 7 && floraAdded < floraCount; attempt++) {
+        const sample = sampleDryLand();
+        if (sample) {
+          const height = 1.1 + random() * 1.1;
+          const rotation = random() * Math.PI * 2;
+          placeRadialInstance(stemMesh, floraAdded, sample.normal, sample.height, height * 0.5,
+            [1, height, 1], rotation, dummy, up);
+          placeRadialInstance(crownMesh, floraAdded, sample.normal, sample.height, height + height * 0.42,
+            [height, height, height], rotation, dummy, up);
+          floraAdded++;
+        }
+        if (attempt > 0 && attempt % 80 === 0) {
+          startButton.textContent = 'توزيع النباتات... ' + Math.round(floraAdded / floraCount * 100) + '%';
+          await new Promise(resolve => requestAnimationFrame(resolve));
+        }
+      }
+
+      for (let attempt = 0; attempt < rockCount * 7 && rocksAdded < rockCount; attempt++) {
+        const sample = sampleDryLand();
+        if (sample) {
+          const size = 0.35 + random() * 1.0;
+          placeRadialInstance(rockMesh, rocksAdded, sample.normal, sample.height, size * 0.36,
+            [size * 1.2, size * 0.78, size], random() * Math.PI * 2, dummy, up);
+          rocksAdded++;
+        }
+        if (attempt > 0 && attempt % 100 === 0) await new Promise(resolve => requestAnimationFrame(resolve));
+      }
+
+      for (let attempt = 0; attempt < mineralCount * 9 && mineralsAdded < mineralCount; attempt++) {
+        const sample = sampleDryLand();
+        if (sample) {
+          const size = 0.55 + random() * 0.85;
+          placeRadialInstance(crystals, mineralsAdded, sample.normal, sample.height, size * 0.72,
+            [size * 0.62, size * 1.55, size * 0.62], random() * Math.PI * 2, dummy, up);
+          mineralNodes.push({ normal: sample.normal.clone(), instance: mineralsAdded, collected: false });
+          mineralsAdded++;
+        }
+        if (attempt > 0 && attempt % 70 === 0) await new Promise(resolve => requestAnimationFrame(resolve));
+      }
+
+      stemMesh.count = floraAdded;
+      crownMesh.count = floraAdded;
+      rockMesh.count = rocksAdded;
+      crystals.count = mineralsAdded;
+      for (const mesh of [stemMesh, crownMesh, rockMesh, crystals]) {
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.castShadow = false;
+        mesh.receiveShadow = true;
+        mesh.frustumCulled = false;
+        scene.add(mesh);
+        resourceMeshes.push(mesh);
+      }
+      mineralMesh = crystals;
+      startButton.textContent = 'إنهاء التجهيز...';
+    }
+
+    function scanForMineral() {
+      if (!running || traveling) return;
+      let nearest = null, nearestDistance = Infinity;
+      for (const node of mineralNodes) {
+        if (node.collected) continue;
+        const distance = Math.acos(clamp(surfaceNormal.dot(node.normal), -1, 1)) * PLANET_RADIUS;
+        if (distance < nearestDistance) { nearestDistance = distance; nearest = node; }
+      }
+      if (!nearest || nearestDistance > 22) {
+        showToast('لا توجد بلورات قريبة. تحرك واستكشف المنطقة.');
+        return;
+      }
+      nearest.collected = true;
+      const hidden = new THREE.Object3D();
+      hidden.position.copy(nearest.normal).multiplyScalar(PLANET_RADIUS + terrainHeight(nearest.normal));
+      hidden.scale.setScalar(0.0001);
+      hidden.updateMatrix();
+      mineralMesh.setMatrixAt(nearest.instance, hidden.matrix);
+      mineralMesh.instanceMatrix.needsUpdate = true;
+      mineralsCollected++;
+      mineralCount.textContent = String(mineralsCollected);
+      showToast('جمعت بلورة نادرة! المسافة ' + Math.round(nearestDistance) + ' م');
     }
 
     function addPart(parent, geometry, material, position, scale) {
