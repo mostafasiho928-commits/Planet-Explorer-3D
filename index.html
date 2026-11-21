@@ -42,6 +42,7 @@
     #planet-subtitle { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; white-space: nowrap; }
     #open-planet-map { border: 1px solid rgba(112,216,232,.34); border-radius: 10px; padding: 8px 10px; color: #dffaff; background: rgba(63,150,171,.2); font: 600 10px Tahoma, Arial, sans-serif; white-space: nowrap; }
     #open-planet-map:active { transform: scale(.96); }
+    .settings-grid{display:grid;gap:12px;margin:16px 0}.setting-row{display:grid;grid-template-columns:1fr 45%;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px}.setting-row span{font-size:11px;color:var(--text)}.setting-row small{display:block;color:var(--muted);font-size:9px}.setting-row select{min-height:38px;border-radius:8px;background:#102532;color:white;padding:6px}
     .modal { position: absolute; z-index: 18; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(1,8,14,.72); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); }
     .modal.hidden { display: none; }
     .modal-card { width: min(440px, 100%); max-height: calc(100% - 12px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 21px; border-radius: 21px; }
@@ -197,6 +198,7 @@
         <span class="modal-note">تُولّد خصائص الكواكب عند الطلب ولا تُخزّن 150 مليون نسخة مسبقاً. حفظ آخر كوكب تزوره يتم محلياً على جهازك.</span>
       </div>
     </section>
+    <section id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div class="modal-card glass"><div class="modal-head"><h2 id="settings-title">إعدادات الرسوميات</h2><button id="close-settings" type="button">×</button></div><p class="modal-intro">اختر جودة العالم ومعدل الإطارات. تغيير الجودة يعيد تحميل العالم ويحفظ تقدم المهمات.</p><div class="settings-grid"><label class="setting-row"><span>جودة الرسوميات</span><select id="quality-select"><option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option></select></label><label class="setting-row"><span>معدل الإطارات</span><select id="fps-select"><option value="15">15 إطاراً/ث</option><option value="30">30 إطاراً/ث</option><option value="60">60 إطاراً/ث</option></select></label></div><p class="settings-warning">الجودة العالية و60 إطاراً قد يرفعان حرارة الهاتف واستهلاك البطارية.</p><div class="modal-actions"><button id="apply-settings" type="button">تطبيق</button><button id="cancel-settings" type="button">إلغاء</button></div></div></section>
   </main>
 
   <script>
@@ -211,9 +213,11 @@
     const DEVICE_MEMORY_GB = navigator.deviceMemory || 4;
     const CPU_THREADS = navigator.hardwareConcurrency || 4;
     const LOW_END_DEVICE = IS_TOUCH_DEVICE && (DEVICE_MEMORY_GB <= 4 || CPU_THREADS <= 6 || Math.min(screen.width || 800, screen.height || 600) <= 760);
-    const PLANET_WIDTH_SEGMENTS = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 176 : 240) : 512;
-    const PLANET_HEIGHT_SEGMENTS = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 88 : 120) : 256;
-    const FRAME_INTERVAL = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 1000 / 24 : 1000 / 30) : 1000 / 60;
+    const QUALITY_PRESETS={low:{width:208,height:104,pixelRatio:.78,trees:180,grass:300,texture:512},medium:{width:320,height:160,pixelRatio:1,trees:360,grass:620,texture:512},high:{width:512,height:256,pixelRatio:1.45,trees:680,grass:1050,texture:1024}};
+    function loadGraphicsSettings(){const fallback={quality:IS_TOUCH_DEVICE?'medium':'high',fps:IS_TOUCH_DEVICE?30:60};try{const x=JSON.parse(localStorage.getItem('madar.graphicsSettings.v1')||'null');return{quality:x&&QUALITY_PRESETS[x.quality]?x.quality:fallback.quality,fps:x&&[15,30,60].includes(Number(x.fps))?Number(x.fps):fallback.fps};}catch(_){return fallback;}}
+    const GAME_SETTINGS=loadGraphicsSettings(),QUALITY=QUALITY_PRESETS[GAME_SETTINGS.quality];
+    const PLANET_WIDTH_SEGMENTS=QUALITY.width,PLANET_HEIGHT_SEGMENTS=QUALITY.height;
+    let FRAME_INTERVAL=1000/GAME_SETTINGS.fps;
     const PLAYER_SPEED = 15.5;
     const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -467,7 +471,7 @@
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraYawTarget = 0.25;
     let cameraPitch = -0.12, cameraPitchTarget = -0.12;
-    let cameraDistance = 18, cameraDistanceTarget = 18;
+    let cameraDistance = 12.5, cameraDistanceTarget = 12.5;
     let joystickPointer = null, cameraPointer = null;
     let cameraTouches = new Map(), pinchStartDistance = 0, pinchStartZoom = 14;
     let sprintHeld = false;
@@ -812,8 +816,14 @@
       terrainGridHeight = PLANET_HEIGHT_SEGMENTS;
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       geometry.computeBoundingSphere();
+      const soilCanvas=document.createElement('canvas');soilCanvas.width=soilCanvas.height=QUALITY.texture;
+      const soilCtx=soilCanvas.getContext('2d'),soilData=soilCtx.createImageData(QUALITY.texture,QUALITY.texture);
+      const soilRand=randomFromSeed((activePlanet.seed^0x6D2B79F5)>>>0),soilColor=new THREE.Color(activePlanet.biome.palette.ground||activePlanet.biome.palette.low||0x8a785e);
+      for(let p=0;p<soilData.data.length;p+=4){const n=(soilRand()-.5)*34;soilData.data[p]=clamp(soilColor.r*255+n,0,255);soilData.data[p+1]=clamp(soilColor.g*255+n*.8,0,255);soilData.data[p+2]=clamp(soilColor.b*255+n*.6,0,255);soilData.data[p+3]=255;}
+      soilCtx.putImageData(soilData,0,0);for(let k=0;k<QUALITY.texture*QUALITY.texture/420;k++){soilCtx.fillStyle=soilRand()>.5?'rgba(35,28,22,.18)':'rgba(255,245,220,.14)';soilCtx.beginPath();soilCtx.arc(soilRand()*QUALITY.texture,soilRand()*QUALITY.texture,.5+soilRand()*2,0,Math.PI*2);soilCtx.fill();}
+      const soilTexture=new THREE.CanvasTexture(soilCanvas);soilTexture.wrapS=soilTexture.wrapT=THREE.RepeatWrapping;soilTexture.repeat.set(28,14);soilTexture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());soilTexture.encoding=THREE.sRGBEncoding;
       planetSurface = new THREE.Mesh(geometry,
-        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0.015 }));
+        new THREE.MeshStandardMaterial({ vertexColors: true, map:soilTexture, roughness:1, metalness:0 }));
       planetSurface.receiveShadow = !IS_TOUCH_DEVICE;
       planetSurface.castShadow = !IS_TOUCH_DEVICE;
       scene.add(planetSurface);
@@ -888,8 +898,8 @@
       else if (biomeName === 'صحارى كهرمانية') floraFactor = 0.32;
       else if (biomeName === 'صفائح جليدية') floraFactor = 0.44;
 
-      const floraCount = Math.max(18, Math.floor((LOW_END_DEVICE ? 62 : (IS_TOUCH_DEVICE ? 96 : 260)) * floraFactor));
-      const grassCount = Math.max(48, Math.floor((LOW_END_DEVICE ? 130 : (IS_TOUCH_DEVICE ? 220 : 620)) * floraFactor));
+      const floraCount = Math.max(18, Math.floor(QUALITY.trees * floraFactor));
+      const grassCount = Math.max(48, Math.floor(QUALITY.grass * floraFactor));
       const rockCount = LOW_END_DEVICE ? 54 : (IS_TOUCH_DEVICE ? 82 : 180);
       const mineralNodeTarget = LOW_END_DEVICE ? 54 : (IS_TOUCH_DEVICE ? 76 : 125);
       const cloudCount = LOW_END_DEVICE ? 6 : (IS_TOUCH_DEVICE ? 10 : 22);
@@ -2120,9 +2130,9 @@
         powerPreference: IS_TOUCH_DEVICE ? 'low-power' : 'high-performance',
         stencil: false, depth: true, alpha: false
       });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 0.78 : (IS_TOUCH_DEVICE ? 0.92 : 1.5)));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,QUALITY.pixelRatio,IS_TOUCH_DEVICE?1.15:1.7));
       renderer.setSize(viewport.width, viewport.height);
-      renderer.shadowMap.enabled = !IS_TOUCH_DEVICE;
+      renderer.shadowMap.enabled = GAME_SETTINGS.quality==='high'&&!IS_TOUCH_DEVICE;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.outputEncoding = THREE.sRGBEncoding;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -2156,7 +2166,7 @@
       const viewport = getGameViewport();
       camera.aspect = viewport.width / viewport.height;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 0.78 : (IS_TOUCH_DEVICE ? 0.92 : 1.5)));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,QUALITY.pixelRatio,IS_TOUCH_DEVICE?1.15:1.7));
       renderer.setSize(viewport.width, viewport.height);
     }
 
@@ -2356,47 +2366,33 @@
       smoothedMove.y += (input.forward - smoothedMove.y) * blend;
       const moveAmount = Math.min(1, Math.hypot(smoothedMove.x, smoothedMove.y));
       if (planeMode && planeRoot) {
-        planeThrottle = clamp(planeThrottle + input.forward * dt * 0.52 +
-          ((sprintHeld || keys.has('shift')) ? dt * 0.34 : 0) -
-          (planeLandingRequested ? dt * 0.10 : (!input.forward && !sprintHeld ? dt * 0.045 : 0)), 0, 1);
-        if (input.strafe !== 0) cameraYawTarget += input.strafe * dt * 0.78;
-        const frame = surfaceFrame(surfaceNormal);
-        const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
-        const airSpeed = 12 + planeThrottle * 116 * (planeUpgraded ? 1.22 : 1);
-        const distance = airSpeed * dt;
-        const oldNormal = surfaceNormal.clone();
-        const angle = distance / PLANET_RADIUS;
-        surfaceNormal.copy(oldNormal).multiplyScalar(Math.cos(angle)).addScaledVector(forward, Math.sin(angle)).normalize();
-        if (!planeLanded) planeFlightDistance += distance;
-        const gravity = BASE_GRAVITY * activePlanet.gravityFactor;
-        const liftRatio = clamp((airSpeed - 32) / 76, 0, 1);
-        const lift = liftRatio * liftRatio * gravity * 1.55;
-        verticalVelocity += (lift - gravity + planeClimbHeld * 8.5 - (planeLandingRequested ? 5.5 : 0)) * dt;
-        verticalOffset = clamp(verticalOffset + verticalVelocity * dt, 0, 520);
-        if (verticalOffset <= 0.01) {
-          verticalOffset = 0;
-          if (verticalVelocity < 0) verticalVelocity = 0;
-            planeLanded = true;
-          if (planeLandingRequested) {
-            planeLandingRequested = false;
-            showToast('تم الهبوط بنجاح');
-          }
-          if (planeFlightDistance >= 600) planeCertified = true;
-          if (planeCertified) { savePlanetProgress(); updateMissionProgress(); }
-        } else planeLanded = false;
-        planeBank += (clamp(input.strafe, -1, 1) * 0.62 - planeBank) * (1 - Math.exp(-4.5 * dt));
-        const rightAxis = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
-        const correctedForward = new THREE.Vector3().crossVectors(rightAxis, surfaceNormal).normalize();
-        orientPlayer(correctedForward, 1);
-        player.position.copy(surfacePoint(surfaceNormal, verticalOffset));
-        planeRoot.position.copy(player.position).addScaledVector(surfaceNormal, 1.7);
-        planeRoot.quaternion.copy(player.quaternion);
-        planeRoot.rotateZ(-planeBank);
-        if (planeRoot.userData.propeller) planeRoot.userData.propeller.rotation.z += dt * (12 + airSpeed * 0.7);
-        planeSpeed = airSpeed;
-        status.textContent = planeLanded
-          ? 'الطائرة على الأرض · السرعة ' + Math.round(airSpeed * 3.6) + ' كم/س'
-          : 'دورية جوية · السرعة ' + Math.round(airSpeed) + ' كم/س · الارتفاع ' + Math.round(verticalOffset) + 'م';
+        // Fixed substeps and damped throttle/steering prevent frame-rate dependent impulses.
+        const steps=Math.max(1,Math.min(8,Math.ceil(dt/(1/60)))),h=dt/steps;
+        for(let k=0;k<steps;k++){
+          const targetThrottle=clamp(Math.max(0,input.forward)*.82+((sprintHeld||keys.has('shift'))?.18:0),0,1);
+          planeThrottle+=(targetThrottle-planeThrottle)*(1-Math.exp(-(targetThrottle>planeThrottle?1.5:2.7)*h));
+          const brake=Math.max(0,-input.forward),accel=planeThrottle*30,drag=.9+planeSpeed*planeSpeed*.0018;
+          planeSpeed=clamp(planeSpeed+(accel-drag-brake*22-(planeLandingRequested?2.4:0))*h,0,planeUpgraded?150:126);
+          const authority=clamp(planeSpeed/48,.08,1),desiredYaw=clamp(input.strafe,-1,1)*(planeLanded?.30:.52)*authority;
+          planeYawRate+=(desiredYaw-planeYawRate)*(1-Math.exp(-3.4*h));
+          const old=surfaceNormal.clone(),frame=surfaceFrame(old);
+          const forward=frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east,Math.sin(cameraYaw)).normalize();
+          forward.applyAxisAngle(old,-planeYawRate*h).projectOnPlane(old).normalize();
+          const angle=planeSpeed*h/PLANET_RADIUS;
+          if(angle>0){surfaceNormal.copy(old).multiplyScalar(Math.cos(angle)).addScaledVector(forward,Math.sin(angle)).normalize();cameraYawTarget+=planeYawRate*h;}
+          if(!planeLanded)planeFlightDistance+=planeSpeed*h;
+          const gravity=BASE_GRAVITY*activePlanet.gravityFactor,lift=clamp((planeSpeed-35)/72,0,1)**2*gravity*1.42;
+          if(planeLanded&&planeSpeed>=72){planeLanded=false;verticalVelocity=1;showToast('سرعة الإقلاع مناسبة — الطائرة ترتفع');}
+          if(planeLanded){verticalOffset=0;verticalVelocity=0;}
+          else{verticalVelocity=clamp(verticalVelocity+(lift-gravity+clamp(planeClimbHeld,-1,1)*5.4-(planeLandingRequested?2:0))*h,-18,18);verticalOffset=clamp(verticalOffset+verticalVelocity*h,0,900);
+            if(verticalOffset===0&&verticalVelocity<0&&(planeLandingRequested||planeSpeed<52)){planeLanded=true;verticalVelocity=0;planeLandingRequested=false;planeClimbHeld=0;showToast('هبوط مكتمل — خفّف السرعة قبل الترجل');}}
+        }
+        const frame=surfaceFrame(surfaceNormal),forward=frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east,Math.sin(cameraYaw)).normalize();
+        planeBank+=(clamp(-planeYawRate/.52*.62,-.62,.62)-planeBank)*(1-Math.exp(-4*dt));
+        orientPlayer(forward,1);player.position.copy(surfacePoint(surfaceNormal,verticalOffset));planeRoot.position.copy(player.position).addScaledVector(surfaceNormal,1.7);planeRoot.quaternion.copy(player.quaternion);planeRoot.rotateZ(-planeBank);
+        if(planeRoot.userData.propeller)planeRoot.userData.propeller.rotation.z+=dt*(9+planeSpeed*.78);
+        if(planeFlightDistance>=600&&!planeCertified){planeCertified=true;savePlanetProgress();updateMissionProgress();}
+        status.textContent=planeLanded?'على الأرض · '+Math.round(planeSpeed*3.6)+' كم/س · تسارع للإقلاع':'طيران · '+Math.round(planeSpeed*3.6)+' كم/س · ارتفاع '+Math.round(verticalOffset)+'م';
         return;
       }
       if (caveMode && caveRoot && caveLocalPosition) {
@@ -2513,8 +2509,8 @@
           starField.material.opacity = nightFactor;
         }
       }
-      const target = player.position.clone().addScaledVector(upAxis, 2.0);
-      const orbitElevation = caveMode ? 0.22 : 0.18;
+      const target = player.position.clone().addScaledVector(upAxis, 2.35);
+      const orbitElevation = caveMode ? 0.24 : 0.22;
       const desired = target.clone()
         .addScaledVector(forward, -Math.cos(orbitElevation) * cameraDistance)
         .addScaledVector(upAxis, Math.sin(orbitElevation) * cameraDistance);
@@ -2687,6 +2683,12 @@
       return id;
     }
 
+    const settingsModal=document.getElementById('settings-modal'),qualitySelect=document.getElementById('quality-select'),fpsSelect=document.getElementById('fps-select');
+    const settingsButton=document.createElement('button');settingsButton.id='open-settings';settingsButton.type='button';settingsButton.textContent='⚙';settingsButton.title='إعدادات الرسوميات';game.appendChild(settingsButton);
+    function closeSettings(){settingsModal.classList.add('hidden');}
+    settingsButton.addEventListener('click',()=>{qualitySelect.value=GAME_SETTINGS.quality;fpsSelect.value=String(GAME_SETTINGS.fps);settingsModal.classList.remove('hidden');});
+    document.getElementById('close-settings').addEventListener('click',closeSettings);document.getElementById('cancel-settings').addEventListener('click',closeSettings);
+    document.getElementById('apply-settings').addEventListener('click',()=>{const q=QUALITY_PRESETS[qualitySelect.value]?qualitySelect.value:GAME_SETTINGS.quality,fps=[15,30,60].includes(Number(fpsSelect.value))?Number(fpsSelect.value):GAME_SETTINGS.fps,reload=q!==GAME_SETTINGS.quality;GAME_SETTINGS.quality=q;GAME_SETTINGS.fps=fps;try{localStorage.setItem('madar.graphicsSettings.v1',JSON.stringify(GAME_SETTINGS));}catch(_){}closeSettings();if(reload){showToast('تطبيق الجودة الجديدة…');setTimeout(()=>location.reload(),350);}else{FRAME_INTERVAL=1000/fps;lastFrameTime=performance.now();showToast('تم ضبط معدل الإطارات على '+fps);}});
     document.getElementById('open-planet-map').addEventListener('click', openPlanetMap);
     document.getElementById('close-planet-map').addEventListener('click', closePlanetMap);
     document.getElementById('travel-planet').addEventListener('click', () => {
