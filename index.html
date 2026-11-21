@@ -401,6 +401,7 @@
     let terrainVertexData = null, terrainGridWidth = 0, terrainGridHeight = 0;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
     let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null, weatherMesh = null;
+    let moonRig = null;
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraYawTarget = 0.25;
@@ -550,6 +551,22 @@
       sunSprite.position.set(-220, 290, -215);
       sunSprite.scale.set(560, 560, 1);
       scene.add(sunSprite);
+
+      // A distant ringed moon provides a stable visual landmark in the sky.
+      moonRig = new THREE.Group();
+      const moonBody = new THREE.Mesh(
+        new THREE.SphereGeometry(310, 24, 16),
+        new THREE.MeshStandardMaterial({ color: 0x8298a4, roughness: 0.94, metalness: 0.04 })
+      );
+      moonRig.add(moonBody);
+      const moonRing = new THREE.Mesh(
+        new THREE.RingGeometry(405, 610, 48),
+        new THREE.MeshBasicMaterial({ color: 0x9db8c2, side: THREE.DoubleSide, transparent: true, opacity: 0.66 })
+      );
+      moonRing.rotation.x = -0.28;
+      moonRing.rotation.y = 0.14;
+      moonRig.add(moonRing);
+      scene.add(moonRig);
 
       const sunDir = uniforms.sunDirection.value;
       sunLight = new THREE.DirectionalLight(activePlanet.biome.sun, 1.05 + activePlanet.atmosphere * 0.22);
@@ -834,39 +851,40 @@
         }
       }
 
-      // Cloud banks are assembled from broad puffs and sit above the mountain belts.
-      const cloudPuffsPerBank = 4;
+      // A near-field cloud deck follows the explorer, so it remains visible instead of hiding beyond the curved horizon.
+      const cloudPuffsPerBank = 6;
       const clouds = new THREE.InstancedMesh(
         new THREE.SphereGeometry(1, 10, 7),
         new THREE.MeshLambertMaterial({
-          color: activePlanet.weather === 'rain' ? new THREE.Color(activePlanet.biome.horizon).multiplyScalar(0.72) : activePlanet.biome.horizon,
-          transparent: true, opacity: activePlanet.weather === 'rain' ? 0.72 : 0.5, depthWrite: false
+          color: activePlanet.weather === 'rain' ? 0xc5d4df : 0xf0f7fb,
+          transparent: true, opacity: activePlanet.weather === 'rain' ? 0.84 : 0.9, depthWrite: false
         }),
         cloudCount * cloudPuffsPerBank
       );
       let cloudIndex = 0;
       for (let bank = 0; bank < cloudCount; bank++) {
-        const angle = 0.30 + random() * 0.62;
         const bearing = random() * Math.PI * 2;
-        const tangent = localFrame.north.clone().multiplyScalar(Math.cos(bearing))
-          .addScaledVector(localFrame.east, Math.sin(bearing));
-        const normal = surfaceNormal.clone().multiplyScalar(Math.cos(angle))
-          .addScaledVector(tangent, Math.sin(angle)).normalize();
-        const frame = surfaceFrame(normal);
-        const cloudBase = PLANET_RADIUS + terrainHeight(normal) + 760 + random() * 300;
+        const distance = 120 + random() * 1750;
+        const centerX = Math.sin(bearing) * distance;
+        const centerZ = Math.cos(bearing) * distance;
+        const centerY = 175 + random() * 320;
+        const spread = 55 + random() * 55;
         for (let puff = 0; puff < cloudPuffsPerBank; puff++) {
-          const offsetA = (puff - 1.5) * (34 + random() * 24);
-          const offsetB = (random() - 0.5) * 62;
-          dummy.position.copy(normal).multiplyScalar(cloudBase);
-          dummy.position.addScaledVector(frame.east, offsetA).addScaledVector(frame.north, offsetB);
-          dummy.quaternion.setFromUnitVectors(up, normal);
-          dummy.rotateY(random() * Math.PI * 2);
-          dummy.scale.set(28 + random() * 34, 9 + random() * 9, 24 + random() * 34);
+          const offsetX = (random() - 0.5) * spread * 2.4;
+          const offsetZ = (random() - 0.5) * spread * 1.8;
+          dummy.position.set(centerX + offsetX, centerY + (random() - 0.5) * 34, centerZ + offsetZ);
+          dummy.quaternion.setFromAxisAngle(up, random() * Math.PI * 2);
+          const size = 48 + random() * 55;
+          dummy.scale.set(size * (0.9 + random() * 0.5), 18 + random() * 22, size * (0.78 + random() * 0.55));
           dummy.updateMatrix();
           clouds.setMatrixAt(cloudIndex++, dummy.matrix);
         }
       }
       clouds.count = cloudIndex;
+      const cloudForward = localFrame.north.clone();
+      const cloudRight = new THREE.Vector3().crossVectors(surfaceNormal, cloudForward).normalize();
+      clouds.position.copy(surfacePoint(surfaceNormal));
+      clouds.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(cloudRight, surfaceNormal, cloudForward));
 
       if (activePlanet.weather !== 'clear') {
         const particleCount = LOW_END_DEVICE ? 180 : 360;
@@ -1356,6 +1374,17 @@
       camera.up.copy(surfaceNormal);
       camera.lookAt(camera.position.clone().addScaledVector(viewDirection, 1000));
       sky.position.copy(camera.position);
+      if (cloudMesh) {
+        cloudMesh.position.copy(player.position);
+        const cloudForward = frame.north.clone();
+        const cloudRight = new THREE.Vector3().crossVectors(surfaceNormal, cloudForward).normalize();
+        cloudMesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(cloudRight, surfaceNormal, cloudForward));
+      }
+      if (moonRig) {
+        const moonDirection = forward.clone().multiplyScalar(0.78).addScaledVector(surfaceNormal, 0.58).normalize();
+        moonRig.position.copy(camera.position).addScaledVector(moonDirection, 8200);
+        moonRig.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), moonDirection);
+      }
       sunSprite.position.set(camera.position.x - 936, camera.position.y + 1224, camera.position.z - 918);
       sunLight.target.position.copy(player.position);
       sunLight.position.set(player.position.x - 0.52 * 85, player.position.y + 0.68 * 85, player.position.z - 0.51 * 85);
@@ -1394,7 +1423,8 @@
       updateCamera(dt);
       updateResourceHint();
       updateWeather(dt);
-      if (cloudMesh) cloudMesh.rotation.y += dt * 0.00105;
+      if (cloudMesh) cloudMesh.rotation.y += dt * 0.00011;
+      if (moonRig) moonRig.rotation.z += dt * 0.0008;
       renderer.render(scene, camera);
     }
 
