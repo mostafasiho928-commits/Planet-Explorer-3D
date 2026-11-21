@@ -419,7 +419,7 @@
       else player.quaternion.slerp(target, clamp(blend, 0, 1));
     }
 
-    let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight;
+    let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight, starField = null;
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh, oceanTexture = null;
     let terrainVertexData = null, terrainGridWidth = 0, terrainGridHeight = 0;
@@ -573,6 +573,28 @@
       sky = new THREE.Mesh(new THREE.SphereGeometry(700, 32, 18), material);
       sky.frustumCulled = false;
       scene.add(sky);
+
+      const starCount = LOW_END_DEVICE ? 420 : (IS_TOUCH_DEVICE ? 700 : 1200);
+      const starRandom = randomFromSeed((activePlanet.seed ^ 0x4D415244) >>> 0);
+      const starPositions = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        const y = starRandom() * 2 - 1;
+        const angle = starRandom() * Math.PI * 2;
+        const ring = Math.sqrt(1 - y * y);
+        starPositions[i * 3] = Math.cos(angle) * ring * 5200;
+        starPositions[i * 3 + 1] = y * 5200;
+        starPositions[i * 3 + 2] = Math.sin(angle) * ring * 5200;
+      }
+      const starGeometry = new THREE.BufferGeometry();
+      starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+      const starMaterial = new THREE.PointsMaterial({
+        color: 0xd9edff, size: 2.0, sizeAttenuation: false,
+        transparent: true, opacity: 0, depthWrite: false, fog: false
+      });
+      starField = new THREE.Points(starGeometry, starMaterial);
+      starField.frustumCulled = false;
+      starField.renderOrder = 3;
+      scene.add(starField);
 
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 128;
@@ -1295,6 +1317,7 @@
         if (cloudMesh) cloudMesh.visible = true;
         if (moonRig) moonRig.visible = true;
         if (sky) sky.visible = true;
+        if (starField) starField.visible = true;
         if (sunSprite) sunSprite.visible = true;
         if (weatherMesh) weatherMesh.visible = true;
         scene.fog = new THREE.Fog(activePlanet.biome.fog, 260, 4300);
@@ -1315,6 +1338,7 @@
       if (cloudMesh) cloudMesh.visible = false;
       if (moonRig) moonRig.visible = false;
       if (sky) sky.visible = false;
+      if (starField) starField.visible = false;
       if (sunSprite) sunSprite.visible = false;
       if (weatherMesh) weatherMesh.visible = false;
       scene.fog = new THREE.Fog(0x111923, 22, 260);
@@ -1960,6 +1984,36 @@
       const forward = caveMode
         ? new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw).applyQuaternion(caveRoot.quaternion).normalize()
         : frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
+      let sunDirection = upAxis.clone();
+      let daylight = 1, nightFactor = 0;
+      if (!caveMode) {
+        const daySeconds = Math.max(64, activePlanet.dayHours * 8);
+        const phase = Math.PI * 0.5 + (elapsed / daySeconds) * Math.PI * 2;
+        const solarFrame = surfaceFrame(surfaceNormal);
+        sunDirection = surfaceNormal.clone().multiplyScalar(Math.sin(phase))
+          .addScaledVector(solarFrame.east, Math.cos(phase)).normalize();
+        daylight = clamp(sunDirection.dot(surfaceNormal) * 1.42 + 0.08, 0.04, 1);
+        nightFactor = 1 - daylight;
+        const biome = activePlanet.biome;
+        if (skyUniforms) {
+          skyUniforms.sunDirection.value.copy(sunDirection);
+          skyUniforms.topColor.value.set(0x07101f).lerp(new THREE.Color(biome.sky), daylight);
+          skyUniforms.horizonColor.value.set(0x111a28).lerp(new THREE.Color(biome.horizon), Math.max(0.1, daylight));
+        }
+        if (sunLight) {
+          sunLight.position.copy(player.position).addScaledVector(sunDirection, 320);
+          sunLight.intensity = 0.08 + daylight * (0.95 + activePlanet.atmosphere * 0.16);
+          if (hemiLight) hemiLight.intensity = 0.16 + daylight * 0.58;
+        }
+        if (sunSprite) {
+          sunSprite.position.copy(camera.position).addScaledVector(sunDirection, 3200);
+          sunSprite.material.opacity = clamp(daylight * 1.35, 0, 1);
+        }
+        if (starField) {
+          starField.position.copy(camera.position);
+          starField.material.opacity = nightFactor;
+        }
+      }
       const target = player.position.clone().addScaledVector(upAxis, 2.0);
       const orbitElevation = caveMode ? 0.22 : 0.18;
       const desired = target.clone()
@@ -1984,13 +2038,14 @@
         cloudMesh.rotateY(dt * 0.012);
       }
       if (moonRig && !caveMode) {
-        const moonDirection = forward.clone().multiplyScalar(0.78).addScaledVector(surfaceNormal, 0.58).normalize();
+        const moonDirection = sunDirection.clone().negate();
         moonRig.position.copy(camera.position).addScaledVector(moonDirection, 8200);
         moonRig.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), moonDirection);
+        moonRig.visible = nightFactor > 0.16;
       }
-      sunSprite.position.set(camera.position.x - 936, camera.position.y + 1224, camera.position.z - 918);
-      sunLight.target.position.copy(player.position);
-      sunLight.position.set(player.position.x - 0.52 * 85, player.position.y + 0.68 * 85, player.position.z - 0.51 * 85);
+      if (starField) starField.visible = !caveMode;
+      if (sunSprite) sunSprite.visible = !caveMode && daylight > 0.04;
+      if (sunLight) sunLight.target.position.copy(player.position);
       if (oceanTexture) oceanTexture.offset.x = (oceanTexture.offset.x + dt * 0.006) % 1;
     }
 
@@ -2089,6 +2144,7 @@
         if (moonRig) moonRig.visible = true;
         if (cloudMesh) cloudMesh.visible = true;
         if (sky) sky.visible = true;
+        if (starField) starField.visible = true;
         if (sunSprite) sunSprite.visible = true;
         if (weatherMesh) weatherMesh.visible = true;
         scene.fog = new THREE.Fog(activePlanet.biome.fog, 260, 4300);
