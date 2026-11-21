@@ -183,9 +183,12 @@
     const PLANET_RADIUS = 12000;
     const WORLD_RELIEF_SCALE = 18;
     const IS_TOUCH_DEVICE = window.matchMedia('(pointer: coarse)').matches;
-    const LOW_END_DEVICE = IS_TOUCH_DEVICE && ((navigator.deviceMemory || 4) <= 3 || (navigator.hardwareConcurrency || 6) <= 4);
-    const PLANET_WIDTH_SEGMENTS = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 288 : 384) : 640;
-    const PLANET_HEIGHT_SEGMENTS = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 144 : 192) : 320;
+    const DEVICE_MEMORY_GB = navigator.deviceMemory || 4;
+    const CPU_THREADS = navigator.hardwareConcurrency || 4;
+    const LOW_END_DEVICE = IS_TOUCH_DEVICE && (DEVICE_MEMORY_GB <= 4 || CPU_THREADS <= 6 || Math.min(screen.width || 800, screen.height || 600) <= 760);
+    const PLANET_WIDTH_SEGMENTS = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 176 : 240) : 512;
+    const PLANET_HEIGHT_SEGMENTS = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 88 : 120) : 256;
+    const FRAME_INTERVAL = IS_TOUCH_DEVICE ? (LOW_END_DEVICE ? 1000 / 24 : 1000 / 30) : 1000 / 60;
     const PLAYER_SPEED = 15.5;
     const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -430,7 +433,7 @@
     let shipRoot = null, shipNormal = null, shipMode = false, shipAirborne = false, shipCanExit = false, shipFuel = 100, fuelWarning = false;
     let mineSwingTimer = 0;
     let moonRig = null;
-    let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
+    let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, lastFrameTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraYawTarget = 0.25;
     let cameraPitch = -0.12, cameraPitchTarget = -0.12;
@@ -574,7 +577,7 @@
       sky.frustumCulled = false;
       scene.add(sky);
 
-      const starCount = LOW_END_DEVICE ? 420 : (IS_TOUCH_DEVICE ? 700 : 1200);
+      const starCount = LOW_END_DEVICE ? 72 : (IS_TOUCH_DEVICE ? 140 : 420);
       const starRandom = randomFromSeed((activePlanet.seed ^ 0x4D415244) >>> 0);
       const starPositions = new Float32Array(starCount * 3);
       for (let i = 0; i < starCount; i++) {
@@ -631,7 +634,7 @@
       const sunDir = uniforms.sunDirection.value;
       sunLight = new THREE.DirectionalLight(activePlanet.biome.sun, 1.05 + activePlanet.atmosphere * 0.22);
       sunLight.position.copy(sunDir).multiplyScalar(85);
-      sunLight.castShadow = true;
+      sunLight.castShadow = !IS_TOUCH_DEVICE;
       sunLight.shadow.mapSize.set(IS_TOUCH_DEVICE ? 1024 : 2048, IS_TOUCH_DEVICE ? 1024 : 2048);
       sunLight.shadow.camera.left = -62;
       sunLight.shadow.camera.right = 62;
@@ -757,8 +760,8 @@
       geometry.computeBoundingSphere();
       planetSurface = new THREE.Mesh(geometry,
         new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0.015 }));
-      planetSurface.receiveShadow = true;
-      planetSurface.castShadow = true;
+      planetSurface.receiveShadow = !IS_TOUCH_DEVICE;
+      planetSurface.castShadow = !IS_TOUCH_DEVICE;
       scene.add(planetSurface);
 
       if (activePlanet.hasOcean) {
@@ -797,7 +800,7 @@
           specular: 0xb7edff, shininess: 115
         });
         oceanMesh = new THREE.Mesh(waterGeometry, waterMaterial);
-        oceanMesh.receiveShadow = true;
+        oceanMesh.receiveShadow = !IS_TOUCH_DEVICE;
         oceanMesh.renderOrder = 1;
         scene.add(oceanMesh);
       }
@@ -831,11 +834,11 @@
       else if (biomeName === 'صحارى كهرمانية') floraFactor = 0.32;
       else if (biomeName === 'صفائح جليدية') floraFactor = 0.44;
 
-      const floraCount = Math.max(24, Math.floor((LOW_END_DEVICE ? 240 : 520) * floraFactor));
-      const grassCount = Math.max(90, Math.floor((LOW_END_DEVICE ? 720 : 1420) * floraFactor));
-      const rockCount = LOW_END_DEVICE ? 180 : 310;
-      const mineralNodeTarget = LOW_END_DEVICE ? 110 : 170;
-      const cloudCount = LOW_END_DEVICE ? 32 : 46;
+      const floraCount = Math.max(18, Math.floor((LOW_END_DEVICE ? 62 : (IS_TOUCH_DEVICE ? 96 : 260)) * floraFactor));
+      const grassCount = Math.max(48, Math.floor((LOW_END_DEVICE ? 130 : (IS_TOUCH_DEVICE ? 220 : 620)) * floraFactor));
+      const rockCount = LOW_END_DEVICE ? 54 : (IS_TOUCH_DEVICE ? 82 : 180);
+      const mineralNodeTarget = LOW_END_DEVICE ? 54 : (IS_TOUCH_DEVICE ? 76 : 125);
+      const cloudCount = LOW_END_DEVICE ? 6 : (IS_TOUCH_DEVICE ? 10 : 22);
       const up = new THREE.Vector3(0, 1, 0);
       const dummy = new THREE.Object3D();
       const localFrame = surfaceFrame(surfaceNormal);
@@ -947,7 +950,7 @@
       }
 
       // Mineral-bearing boulders are separate targets: three tool strikes break one open.
-      const oreTarget = LOW_END_DEVICE ? 18 : 30;
+      const oreTarget = LOW_END_DEVICE ? 8 : (IS_TOUCH_DEVICE ? 12 : 22);
       const oreMaterial = new THREE.MeshStandardMaterial({
         color: 0x4d555d, roughness: 0.94, metalness: 0.18,
         emissive: 0x6b4d24, emissiveIntensity: 0.16
@@ -1059,7 +1062,7 @@
       clouds.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(cloudRight, surfaceNormal, cloudForward));
 
       if (activePlanet.weather !== 'clear') {
-        const particleCount = LOW_END_DEVICE ? 180 : 360;
+        const particleCount = LOW_END_DEVICE ? 42 : (IS_TOUCH_DEVICE ? 76 : 220);
         const particlePositions = new Float32Array(particleCount * 3);
         for (let i = 0; i < particleCount; i++) {
           particlePositions[i * 3] = (Math.random() - 0.5) * 190;
@@ -1092,8 +1095,8 @@
       crystals.count = mineralsAdded;
       for (const mesh of [trunkMesh, lowerCrown, upperCrown, grassMesh, rockMesh, crystals, ores, clouds]) {
         mesh.instanceMatrix.needsUpdate = true;
-        mesh.castShadow = mesh === trunkMesh || mesh === lowerCrown || mesh === rockMesh || mesh === crystals;
-        mesh.receiveShadow = mesh !== grassMesh && mesh !== clouds;
+        mesh.castShadow = !IS_TOUCH_DEVICE && (mesh === trunkMesh || mesh === lowerCrown || mesh === rockMesh || mesh === crystals);
+        mesh.receiveShadow = !IS_TOUCH_DEVICE && mesh !== grassMesh && mesh !== clouds;
         mesh.frustumCulled = false;
         scene.add(mesh);
         resourceMeshes.push(mesh);
@@ -1378,7 +1381,7 @@
       antenna.position.set(1.5, 4.0, -1.8); roverRoot.add(antenna);
       roverRoot.position.copy(surfacePoint(roverNormal, 0.6));
       roverRoot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(roverRight, roverNormal, roverForward));
-      roverRoot.traverse(node => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
+      roverRoot.traverse(node => { if (node.isMesh) { node.castShadow = !IS_TOUCH_DEVICE; node.receiveShadow = !IS_TOUCH_DEVICE; } });
       scene.add(roverRoot);
       roverRoot.visible = true;
     }
@@ -1452,7 +1455,7 @@
       engineGlow.position.y = -0.1; shipRoot.add(engineGlow);
       shipRoot.position.copy(surfacePoint(shipNormal, 0.2));
       shipRoot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, shipNormal, shipForward));
-      shipRoot.traverse(node => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
+      shipRoot.traverse(node => { if (node.isMesh) { node.castShadow = !IS_TOUCH_DEVICE; node.receiveShadow = !IS_TOUCH_DEVICE; } });
       scene.add(shipRoot);
       shipMode = false; shipAirborne = false; shipCanExit = false; shipFuel = 100; fuelWarning = false;
     }
@@ -1589,8 +1592,8 @@
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(position[0], position[1], position[2]);
       if (scale) mesh.scale.set(scale[0], scale[1], scale[2]);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
+      mesh.castShadow = !IS_TOUCH_DEVICE;
+      mesh.receiveShadow = !IS_TOUCH_DEVICE;
       parent.add(mesh);
       return mesh;
     }
@@ -1684,10 +1687,14 @@
       scene = new THREE.Scene();
       scene.fog = new THREE.Fog(activePlanet.biome.fog, 260, 4300);
       camera = new THREE.PerspectiveCamera(66, viewport.width / viewport.height, .1, 18000);
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1.2 : (IS_TOUCH_DEVICE ? 1.5 : 1.8)));
+      renderer = new THREE.WebGLRenderer({
+        antialias: !IS_TOUCH_DEVICE,
+        powerPreference: IS_TOUCH_DEVICE ? 'low-power' : 'high-performance',
+        stencil: false, depth: true, alpha: false
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 0.78 : (IS_TOUCH_DEVICE ? 0.92 : 1.5)));
       renderer.setSize(viewport.width, viewport.height);
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = !IS_TOUCH_DEVICE;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.outputEncoding = THREE.sRGBEncoding;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1719,7 +1726,7 @@
       const viewport = getGameViewport();
       camera.aspect = viewport.width / viewport.height;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1.2 : (IS_TOUCH_DEVICE ? 1.5 : 1.8)));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 0.78 : (IS_TOUCH_DEVICE ? 0.92 : 1.5)));
       renderer.setSize(viewport.width, viewport.height);
     }
 
@@ -2046,7 +2053,7 @@
       if (starField) starField.visible = !caveMode;
       if (sunSprite) sunSprite.visible = !caveMode && daylight > 0.04;
       if (sunLight) sunLight.target.position.copy(player.position);
-      if (oceanTexture) oceanTexture.offset.x = (oceanTexture.offset.x + dt * 0.006) % 1;
+      if (oceanTexture && !IS_TOUCH_DEVICE) oceanTexture.offset.x = (oceanTexture.offset.x + dt * 0.006) % 1;
     }
 
     function updateWeather(dt) {
@@ -2074,7 +2081,9 @@
     function animate(now) {
       if (!running) return;
       requestAnimationFrame(animate);
-      const dt = Math.min((now - lastTime) / 1000 || 0, .04);
+      if (now - lastFrameTime < FRAME_INTERVAL) return;
+      const dt = Math.min((now - lastFrameTime) / 1000 || FRAME_INTERVAL / 1000, IS_TOUCH_DEVICE ? 0.075 : 0.04);
+      lastFrameTime = now;
       lastTime = now;
       elapsed += dt;
       updatePlayer(dt);
@@ -2160,7 +2169,7 @@
       } finally {
         traveling = false;
         running = resume;
-        if (running) { lastTime = performance.now(); requestAnimationFrame(animate); }
+        if (running) { lastTime = performance.now(); lastFrameTime = lastTime; requestAnimationFrame(animate); }
       }
     }
 
@@ -2233,6 +2242,7 @@
         startScreen.style.display = 'none';
         running = true;
         lastTime = performance.now();
+        lastFrameTime = lastTime;
         requestAnimationFrame(animate);
         showToast('أهلاً بك على ' + activePlanet.name);
       } catch (error) {
