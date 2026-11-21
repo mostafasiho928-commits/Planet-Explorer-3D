@@ -137,7 +137,7 @@
     <div id="mission" class="glass">مهمة الاستكشاف: اجمع 5 بلورات</div>
     <div id="survival" class="glass"><span>O₂</span><span id="oxygen-track"><i id="oxygen-fill"></i></span><strong id="oxygen-value">100%</strong><span>وقود</span><strong id="fuel-value">100%</strong></div>
     <div id="resource-hint" aria-live="polite"></div>
-    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز<br>اسحب بالفأرة لتدوير الكاميرا · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة · <b>B</b> مكوك</div>
+    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز أو تشغيل المكوك<br>اسحب يميناً لتدوير الكاميرا يميناً، واسحب للأعلى للنظر إلى السماء · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة · <b>B</b> مكوك</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
     <div id="actions">
       <button class="action" id="scan" aria-label="البحث عن المعادن" title="تحديد أقرب بلورة"><span>⌕</span><small>بحث</small></button>
@@ -512,7 +512,9 @@
         skyUniforms.horizonColor.value.setHex(biome.horizon);
         skyUniforms.sunColor.value.setHex(biome.sun);
       }
-      if (scene.fog) scene.fog.color.setHex(biome.fog);
+      if (scene.fog && !caveMode) scene.fog = new THREE.Fog(biome.fog, 260, 4300);
+      if (cloudMesh && !caveMode) cloudMesh.visible = true;
+      if (moonRig && !caveMode) moonRig.visible = true;
       if (atmosphereMesh) atmosphereMesh.material.color.setHex(biome.horizon);
       if (sunLight) {
         sunLight.color.setHex(biome.sun);
@@ -660,7 +662,17 @@
           }
         });
       }
-      if (roverRoot) { scene.remove(roverRoot); roverRoot = null; }
+      if (roverRoot) {
+        scene.remove(roverRoot);
+        roverRoot.traverse(node => {
+          if (node.geometry) node.geometry.dispose();
+          if (node.material) {
+            if (Array.isArray(node.material)) node.material.forEach(m => m.dispose());
+            else node.material.dispose();
+          }
+        });
+        roverRoot = null;
+      }
       if (shipRoot) {
         scene.remove(shipRoot);
         shipRoot.traverse(node => {
@@ -1085,6 +1097,7 @@
 
     function mineNearbyOre() {
       if (!running || traveling) return;
+      if (drivingRover || shipMode) { showToast('ترجل من المركبة قبل التعدين'); return; }
       const found = nearestOre(15);
       if (!found) { showToast('اقترب من صخرة تحتوي على خام للتعدين'); return; }
       const node = found.node;
@@ -1205,6 +1218,7 @@
       if (moonRig) moonRig.visible = false;
       scene.fog = new THREE.Fog(0x111923, 22, 260);
       caveButton.querySelector('small').textContent = 'خروج';
+      status.textContent = 'داخل الكهف · راقب الأكسجين';
       showToast('دخلت الكهف — انتبه لمخزون الأكسجين');
       updateMissionProgress();
     }
@@ -1727,7 +1741,7 @@
 
     function jump() {
       if (shipMode) { shipAction(); return; }
-      if (!onGround) return;
+      if (drivingRover || !onGround) return;
       verticalVelocity = 10.2 * Math.sqrt(activePlanet.gravityFactor);
       onGround = false;
     }
@@ -1930,6 +1944,9 @@
         cameraYaw = cameraYawTarget = spawnYaw;
         cameraPitch = cameraPitchTarget = -0.12;
         cameraDistance = cameraDistanceTarget = 18;
+        if (moonRig) moonRig.visible = true;
+        if (cloudMesh) cloudMesh.visible = true;
+        scene.fog = new THREE.Fog(activePlanet.biome.fog, 260, 4300);
         cameraTouches.clear(); cameraPointer = null; pinchStartDistance = 0;
         smoothedMove.x = smoothedMove.y = 0;
         orientPlayer(null);
