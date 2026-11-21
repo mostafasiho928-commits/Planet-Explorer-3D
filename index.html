@@ -578,7 +578,7 @@
 
       const floraCount = Math.max(24, Math.floor((LOW_END_DEVICE ? 360 : 620) * floraFactor));
       const rockCount = LOW_END_DEVICE ? 240 : 420;
-      const mineralCount = LOW_END_DEVICE ? 58 : 96;
+      const mineralNodeTarget = LOW_END_DEVICE ? 230 : 360;
       const up = new THREE.Vector3(0, 1, 0);
       const dummy = new THREE.Object3D();
 
@@ -613,7 +613,7 @@
       const crystals = new THREE.InstancedMesh(
         new THREE.OctahedronGeometry(1, 0),
         new THREE.MeshStandardMaterial({ color: 0x68dce5, roughness: 0.24, metalness: 0.58,
-          emissive: 0x153e48, emissiveIntensity: 0.65 }), mineralCount);
+          emissive: 0x153e48, emissiveIntensity: 0.65 }), mineralNodeTarget);
 
       let floraAdded = 0, rocksAdded = 0, mineralsAdded = 0;
       for (let attempt = 0; attempt < floraCount * 7 && floraAdded < floraCount; attempt++) {
@@ -644,7 +644,7 @@
         if (attempt > 0 && attempt % 100 === 0) await new Promise(resolve => requestAnimationFrame(resolve));
       }
 
-      for (let attempt = 0; attempt < mineralCount * 9 && mineralsAdded < mineralCount; attempt++) {
+      for (let attempt = 0; attempt < mineralNodeTarget * 5 && mineralsAdded < mineralNodeTarget; attempt++) {
         const sample = sampleDryLand();
         if (sample) {
           const size = 0.55 + random() * 0.85;
