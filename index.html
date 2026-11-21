@@ -62,6 +62,8 @@
     #travel-planet { background: linear-gradient(110deg,#78dce8,#61b8d1); color: #06202b; border: 0; }
     .modal-note { display: block; margin-top: 13px; color: #718e99; font-size: 9px; line-height: 1.8; }
     #status { position: absolute; z-index: 5; top: 76px; left: 50%; transform: translateX(-50%); padding: 8px 13px; border-radius: 12px; color: #d8edf2; font-size: 11px; white-space: nowrap; pointer-events: none; }
+    #inventory { position: absolute; z-index: 6; left: 50%; bottom: max(13px, env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 8px 13px; border-radius: 12px; color: var(--muted); font-size: 10px; white-space: nowrap; pointer-events: none; }
+    #inventory strong { color: #f3d58c; font-size: 12px; margin-inline-start: 4px; }
     #help { position: absolute; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); padding: 9px 12px; border-radius: 13px; color: var(--muted); font-size: 10px; line-height: 1.8; pointer-events: none; }
     #help b { color: #e6f8fb; font-weight: 600; }
     #joystick { position: absolute; z-index: 8; left: max(24px, env(safe-area-inset-left)); bottom: max(25px, env(safe-area-inset-bottom)); width: 118px; height: 118px; border: 1px solid rgba(220,245,255,.25); border-radius: 50%; background: rgba(5,18,29,.32); box-shadow: inset 0 0 24px rgba(0,0,0,.16); display: none; touch-action: none; }
@@ -70,6 +72,7 @@
     .action { width: 58px; height: 58px; border-radius: 50%; border: 1px solid rgba(230,250,255,.32); background: rgba(7,22,34,.72); color: #effbff; font-size: 23px; box-shadow: 0 8px 18px rgba(0,0,0,.22); backdrop-filter: blur(9px); touch-action: none; }
     .action:active { transform: scale(.94); background: rgba(67,149,169,.72); }
     #jump { border-color: rgba(112,216,232,.55); }
+    #scan { border-color: rgba(243,201,119,.55); color: #ffe6a9; font-size: 20px; }
     #start-screen { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; padding: 22px; background: radial-gradient(ellipse at 50% 35%, rgba(13,49,66,.4), rgba(2,9,16,.78)); }
     .start-card { width: min(430px, 100%); padding: 27px; border-radius: 23px; text-align: center; }
     .start-orb { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; font-size: 35px; color: #a3eff4; background: radial-gradient(circle at 35% 30%, #a4ebdf, #287d8c 55%, #102b43 78%); box-shadow: 0 0 45px rgba(79,194,211,.23); }
@@ -91,6 +94,9 @@
       #planet-name { font-size: 10px; }
       #planet-subtitle { font-size: 8px; }
       #open-planet-map { padding: 7px 8px; font-size: 9px; }
+      #actions { gap: 8px; right: max(14px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); }
+      .action { width: 52px; height: 52px; }
+      #joystick { width: 104px; height: 104px; left: max(15px, env(safe-area-inset-left)); bottom: max(18px, env(safe-area-inset-bottom)); }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
@@ -108,9 +114,13 @@
       </div>
     </div>
     <div id="status" class="glass">استكشف التضاريس المحيطة بك</div>
-    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Space</b> للقفز<br><b>اسحب</b> لتدوير الكاميرا · <b>Esc</b> لإيقاف ملء الشاشة</div>
+    <div id="inventory" class="glass">بلورات جُمعت: <strong id="mineral-count">0</strong></div>
+    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Space</b> للقفز · <b>E</b> للمسح<br><b>اسحب</b> لتدوير الكاميرا</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
-    <div id="actions"><button class="action" id="jump" aria-label="قفز">↑</button></div>
+    <div id="actions">
+      <button class="action" id="scan" aria-label="مسح وجمع البلورات">⌕</button>
+      <button class="action" id="jump" aria-label="قفز">↑</button>
+    </div>
     <div id="toast"></div>
     <section id="start-screen">
       <div class="start-card glass">
@@ -300,6 +310,7 @@
     let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight;
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh;
+    let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
     let running = false, initializing = false, traveling = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraPitch = 0.38, cameraDistance = 10.5;
@@ -313,6 +324,8 @@
     const toast = document.getElementById('toast');
     const startScreen = document.getElementById('start-screen');
     const startButton = document.getElementById('start-button');
+    const scanButton = document.getElementById('scan');
+    const mineralCount = document.getElementById('mineral-count');
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
     const jumpButton = document.getElementById('jump');
