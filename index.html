@@ -168,12 +168,12 @@
     const PLANET_COUNT = 150000000;
     const DEFAULT_PLANET_ID = 20261121;
     const PLANET_RADIUS = 12000;
-    const WORLD_RELIEF_SCALE = 13;
+    const WORLD_RELIEF_SCALE = 18;
     const IS_TOUCH_DEVICE = window.matchMedia('(pointer: coarse)').matches;
     const LOW_END_DEVICE = IS_TOUCH_DEVICE && ((navigator.deviceMemory || 6) <= 3 || (navigator.hardwareConcurrency || 8) <= 4);
-    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 320 : 512;
-    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 160 : 256;
-    const PLAYER_SPEED = 8.5;
+    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 384 : 640;
+    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 192 : 320;
+    const PLAYER_SPEED = 15.5;
     const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const smooth = t => t * t * (3 - 2 * t);
@@ -282,22 +282,22 @@
 
     function terrainHeight(normal) {
       const p = activePlanet;
-      const continents = fbm3(normal.x, normal.y, normal.z, 0.86 * p.terrainScale, (p.seed + 911) >>> 0, 4);
-      const broad = fbm3(normal.x, normal.y, normal.z, 2.05 * p.terrainScale, p.seed, 5);
-      const detail = fbm3(normal.x, normal.y, normal.z, 10.4 * p.terrainScale * p.roughness, (p.seed + 71) >>> 0, 3);
-      const ridges = fbm3(normal.x, normal.y, normal.z, 3.85 * p.terrainScale, (p.seed + 313) >>> 0, 5);
-      const plateauField = fbm3(normal.x, normal.y, normal.z, 1.48 * p.terrainScale, (p.seed + 1259) >>> 0, 4);
-      const plateauDetail = fbm3(normal.x, normal.y, normal.z, 4.3 * p.terrainScale, (p.seed + 1997) >>> 0, 3);
-      const valleyField = fbm3(normal.x, normal.y, normal.z, 6.2 * p.terrainScale, (p.seed + 271) >>> 0, 3);
+      const continents = fbm3(normal.x, normal.y, normal.z, 0.78 * p.terrainScale, (p.seed + 911) >>> 0, 4);
+      const broad = fbm3(normal.x, normal.y, normal.z, 2.0 * p.terrainScale, p.seed, 5);
+      const detail = fbm3(normal.x, normal.y, normal.z, 9.2 * p.terrainScale * p.roughness, (p.seed + 71) >>> 0, 3);
+      const ridges = fbm3(normal.x, normal.y, normal.z, 3.45 * p.terrainScale, (p.seed + 313) >>> 0, 5);
+      const plateauField = fbm3(normal.x, normal.y, normal.z, 1.35 * p.terrainScale, (p.seed + 1259) >>> 0, 4);
+      const plateauDetail = fbm3(normal.x, normal.y, normal.z, 4.1 * p.terrainScale, (p.seed + 1997) >>> 0, 3);
+      const valleyField = fbm3(normal.x, normal.y, normal.z, 5.8 * p.terrainScale, (p.seed + 271) >>> 0, 4);
       const ridgeSignal = clamp(1 - Math.abs(ridges - 0.5) * 2, 0, 1);
-      const mountainMask = smooth(clamp((broad - 0.455) * 3.4, 0, 1));
-      const plateauMask = smooth(clamp((plateauField - 0.585) * 7.5, 0, 1));
-      const valleyCut = Math.pow(Math.max(0, 1 - Math.abs(valleyField - 0.5) * 7.5), 4) * 3.6;
+      const mountainMask = smooth(clamp((broad - 0.405) * 5.4, 0, 1));
+      const plateauMask = smooth(clamp((plateauField - 0.535) * 8.8, 0, 1));
+      const valleyCut = Math.pow(Math.max(0, 1 - Math.abs(valleyField - 0.5) * 7.0), 4) * 8.2;
       const continentalMass = (continents - 0.485) * 43;
-      const rollingLand = (broad - 0.5) * 17 * p.relief;
-      const mountainBelts = Math.pow(ridgeSignal, 2.35) * 16.5 * p.ridgeStrength * mountainMask;
-      const plateaus = plateauMask * (10.5 + (plateauDetail - 0.5) * 5.5);
-      const surfaceDetail = (detail - 0.5) * 2.4 * p.roughness;
+      const rollingLand = (broad - 0.5) * 20 * p.relief;
+      const mountainBelts = Math.pow(ridgeSignal, 1.45) * 35 * p.ridgeStrength * mountainMask;
+      const plateaus = plateauMask * (20 + (plateauDetail - 0.5) * 4.8);
+      const surfaceDetail = (detail - 0.5) * 2.1 * p.roughness;
       return (continentalMass + rollingLand + mountainBelts + plateaus - valleyCut + surfaceDetail - 0.7 + p.offset) * WORLD_RELIEF_SCALE;
     }
     let WORLD_UP, WORLD_X, surfaceNormal, verticalOffset = 0, spawnYaw = 0.25;
@@ -307,8 +307,36 @@
       const north = new THREE.Vector3().crossVectors(normal, east).normalize();
       return { east, north };
     }
+    function surfaceHeightAt(normal) {
+      if (!terrainVertexData || !terrainGridWidth || !terrainGridHeight) return terrainHeight(normal);
+      const width = terrainGridWidth, height = terrainGridHeight;
+      let phi = Math.atan2(normal.z, -normal.x);
+      if (phi < 0) phi += Math.PI * 2;
+      const theta = Math.acos(clamp(normal.y, -1, 1));
+      const gx = phi / (Math.PI * 2) * width;
+      const gy = theta / Math.PI * height;
+      const ix = Math.min(width - 1, Math.floor(gx));
+      const iy = Math.min(height - 1, Math.floor(gy));
+      const u = gx - ix, v = gy - iy;
+      const stride = width + 1;
+      const i00 = (iy * stride + ix) * 3;
+      const i10 = (iy * stride + ix + 1) * 3;
+      const i01 = ((iy + 1) * stride + ix) * 3;
+      const i11 = ((iy + 1) * stride + ix + 1) * 3;
+      const a = u >= v ? i10 : i00;
+      const b = u >= v ? i00 : i01;
+      const c = i11;
+      const p = terrainVertexData;
+      const abx=p[b]-p[a], aby=p[b+1]-p[a+1], abz=p[b+2]-p[a+2];
+      const acx=p[c]-p[a], acy=p[c+1]-p[a+1], acz=p[c+2]-p[a+2];
+      const nx=aby*acz-abz*acy, ny=abz*acx-abx*acz, nz=abx*acy-aby*acx;
+      const denominator=nx*normal.x+ny*normal.y+nz*normal.z;
+      if (Math.abs(denominator) < 1e-7) return terrainHeight(normal);
+      const radius=(nx*p[a]+ny*p[a+1]+nz*p[a+2])/denominator;
+      return Number.isFinite(radius) ? radius-PLANET_RADIUS : terrainHeight(normal);
+    }
     function surfacePoint(normal, extra = 0) {
-      return normal.clone().multiplyScalar(PLANET_RADIUS + terrainHeight(normal) + extra);
+      return normal.clone().multiplyScalar(PLANET_RADIUS + surfaceHeightAt(normal) + extra);
     }
     function findSpawnNormal() {
       let best = new THREE.Vector3(0, 0, 1);
@@ -370,13 +398,14 @@
     let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight;
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh, oceanTexture = null;
+    let terrainVertexData = null, terrainGridWidth = 0, terrainGridHeight = 0;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
     let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null, weatherMesh = null;
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraYawTarget = 0.25;
-    let cameraPitch = 0.38, cameraPitchTarget = 0.38;
-    let cameraDistance = 14, cameraDistanceTarget = 14;
+    let cameraPitch = -0.22, cameraPitchTarget = -0.22;
+    let cameraDistance = 18, cameraDistanceTarget = 18;
     let joystickPointer = null, cameraPointer = null;
     let cameraTouches = new Map(), pinchStartDistance = 0, pinchStartZoom = 14;
     let sprintHeld = false;
@@ -547,9 +576,9 @@
       const palette = activePlanet.biome;
       const color = new THREE.Color(palette.low);
       const elevation = height / WORLD_RELIEF_SCALE;
-      color.lerp(new THREE.Color(palette.mid), clamp((elevation + 20) / 72, 0, 1));
-      color.lerp(new THREE.Color(palette.high), clamp((elevation - 24) / 96, 0, 1));
-      if (normalDot < 0.985) color.lerp(new THREE.Color(palette.rock), clamp((0.985 - normalDot) * 17, 0, 1));
+      color.lerp(new THREE.Color(palette.mid), clamp((elevation + 12) / 46, 0, 1));
+      color.lerp(new THREE.Color(palette.high), clamp((elevation - 28) / 74, 0, 1));
+      if (normalDot < 0.992) color.lerp(new THREE.Color(palette.rock), clamp((0.992 - normalDot) * 24, 0, 1));
       const beachWidth = 3.6 * WORLD_RELIEF_SCALE;
       if (activePlanet.hasOcean && height >= activePlanet.seaLevel && height < activePlanet.seaLevel + beachWidth) {
         const beach = new THREE.Color(activePlanet.temperature < -45 ? 0xb9d0c5 : 0xc8b58a);
@@ -569,6 +598,7 @@
         }
       }
       planetSurface = oceanMesh = atmosphereMesh = mineralMesh = null;
+      terrainVertexData = null; terrainGridWidth = terrainGridHeight = 0;
       resourceMeshes = [];
       mineralNodes = [];
       trackedMineral = null;
@@ -608,6 +638,9 @@
         colors[i * 3 + 1] = color.g;
         colors[i * 3 + 2] = color.b;
       }
+      terrainVertexData = positions.array;
+      terrainGridWidth = PLANET_WIDTH_SEGMENTS;
+      terrainGridHeight = PLANET_HEIGHT_SEGMENTS;
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       geometry.computeBoundingSphere();
       planetSurface = new THREE.Mesh(geometry,
@@ -705,7 +738,7 @@
             .addScaledVector(localFrame.east, Math.sin(bearing));
           const normal = surfaceNormal.clone().multiplyScalar(Math.cos(angle))
             .addScaledVector(tangent, Math.sin(angle)).normalize();
-          const height = terrainHeight(normal);
+          const height = surfaceHeightAt(normal);
           if (!activePlanet.hasOcean || height > activePlanet.seaLevel + 0.75) return { normal, height };
         }
         return null;
@@ -1046,6 +1079,7 @@
       player.add(root);
       verticalOffset = 0;
       player.position.copy(surfacePoint(surfaceNormal));
+      root.scale.setScalar(1.22);
       astronaut = root;
       scene.add(player);
       orientPlayer(null);
@@ -1148,7 +1182,7 @@
           if (cameraTouches.size >= 2) {
             const points = [...cameraTouches.values()];
             const pinchDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-            if (pinchStartDistance > 0) cameraDistanceTarget = clamp(pinchStartZoom * pinchStartDistance / Math.max(35, pinchDistance), 8, 36);
+            if (pinchStartDistance > 0) cameraDistanceTarget = clamp(pinchStartZoom * pinchStartDistance / Math.max(35, pinchDistance), 9, 52);
             return;
           }
         }
@@ -1158,9 +1192,9 @@
         const portraitFallback = window.innerHeight > window.innerWidth;
         const dx = portraitFallback ? screenDy : screenDx;
         const dy = portraitFallback ? -screenDx : screenDy;
-        const sensitivity = e.pointerType === 'mouse' ? 0.0058 : 0.0072;
-        cameraYawTarget -= dx * sensitivity;
-        cameraPitchTarget = clamp(cameraPitchTarget + dy * sensitivity * 0.78, 0.12, 1.22);
+        const sensitivity = e.pointerType === 'mouse' ? 0.0062 : 0.0082;
+        cameraYawTarget += dx * sensitivity;
+        cameraPitchTarget = clamp(cameraPitchTarget - dy * sensitivity * 0.95, -0.78, 0.82);
       });
 
       const endCamera = e => {
@@ -1180,7 +1214,7 @@
       renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
       renderer.domElement.addEventListener('wheel', e => {
         e.preventDefault();
-        cameraDistanceTarget = clamp(cameraDistanceTarget + Math.sign(e.deltaY) * 1.65, 8, 36);
+        cameraDistanceTarget = clamp(cameraDistanceTarget + Math.sign(e.deltaY) * 1.8, 9, 52);
       }, { passive: false });
 
       joystick.addEventListener('pointerdown', e => {
@@ -1239,7 +1273,7 @@
       const frame = surfaceFrame(surfaceNormal);
       const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(player.quaternion).normalize();
       cameraYawTarget = Math.atan2(facing.dot(frame.east), facing.dot(frame.north));
-      cameraPitchTarget = 0.38; cameraDistanceTarget = 14;
+      cameraPitchTarget = -0.22; cameraDistanceTarget = 18;
     }
 
     function jump() {
@@ -1275,7 +1309,7 @@
       const right = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
       const direction = forward.clone().multiplyScalar(smoothedMove.y).addScaledVector(right, smoothedMove.x);
       const sprinting = sprintHeld || keys.has('shift');
-      const speed = PLAYER_SPEED * (sprinting ? 1.72 : 1);
+      const speed = PLAYER_SPEED * (sprinting ? 1.9 : 1);
       const distance = speed * moveAmount * dt * (onGround ? 1 : 0.72);
       if (moveAmount > 0.025 && distance > 0) {
         direction.normalize();
@@ -1309,13 +1343,18 @@
       const frame = surfaceFrame(surfaceNormal);
       const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
       const target = player.position.clone().addScaledVector(surfaceNormal, 2.0);
-      const horizontal = Math.cos(cameraPitch) * cameraDistance;
-      const desired = target.clone().addScaledVector(forward, -horizontal).addScaledVector(surfaceNormal, Math.sin(cameraPitch) * cameraDistance);
-      camera.position.lerp(desired, 1 - Math.exp(-10 * dt));
+      const orbitElevation = 0.24;
+      const desired = target.clone()
+        .addScaledVector(forward, -Math.cos(orbitElevation) * cameraDistance)
+        .addScaledVector(surfaceNormal, Math.sin(orbitElevation) * cameraDistance);
+      camera.position.lerp(desired, 1 - Math.exp(-12 * dt));
       const cameraNormal = camera.position.clone().normalize();
-      const minimumCameraRadius = PLANET_RADIUS + terrainHeight(cameraNormal) + 1.2;
+      const minimumCameraRadius = PLANET_RADIUS + surfaceHeightAt(cameraNormal) + 2.2;
       if (camera.position.length() < minimumCameraRadius) camera.position.copy(cameraNormal.multiplyScalar(minimumCameraRadius));
-      camera.up.copy(surfaceNormal); camera.lookAt(target);
+      const viewDirection = forward.clone().multiplyScalar(Math.cos(cameraPitch))
+        .addScaledVector(surfaceNormal, Math.sin(cameraPitch)).normalize();
+      camera.up.copy(surfaceNormal);
+      camera.lookAt(camera.position.clone().addScaledVector(viewDirection, 1000));
       sky.position.copy(camera.position);
       sunSprite.position.set(camera.position.x - 936, camera.position.y + 1224, camera.position.z - 918);
       sunLight.target.position.copy(player.position);
@@ -1401,8 +1440,8 @@
         onGround = true;
         player.position.copy(surfacePoint(surfaceNormal));
         cameraYaw = cameraYawTarget = spawnYaw;
-        cameraPitch = cameraPitchTarget = 0.38;
-        cameraDistanceTarget = 14;
+        cameraPitch = cameraPitchTarget = -0.22;
+        cameraDistance = cameraDistanceTarget = 18;
         cameraTouches.clear(); cameraPointer = null; pinchStartDistance = 0;
         smoothedMove.x = smoothedMove.y = 0;
         orientPlayer(null);
