@@ -976,7 +976,7 @@
         const caveFloor = new THREE.Mesh(new THREE.PlaneGeometry(34, 88),
           new THREE.MeshStandardMaterial({ color: 0x26313a, roughness: 1, metalness: 0.04 }));
         caveFloor.rotation.x = -Math.PI / 2;
-        caveFloor.position.set(0, -0.7, 48);
+        caveFloor.position.set(0, -0.85, 48);
         caveRoot.add(caveFloor);
         for (const side of [-1, 1]) {
           const wall = new THREE.Mesh(new THREE.BoxGeometry(1.8, 15, 86), caveRock);
@@ -1245,7 +1245,7 @@
       const distance = Math.acos(clamp(surfaceNormal.dot(caveNormal), -1, 1)) * PLANET_RADIUS;
       if (distance > 18) { showToast('اقترب من مدخل الكهف أولاً'); return; }
       caveMode = true;
-      caveLocalPosition = new THREE.Vector3(0, 2.1, 18);
+      caveLocalPosition = new THREE.Vector3(0, 0.08, 18);
       player.position.copy(caveRoot.localToWorld(caveLocalPosition.clone()));
       player.quaternion.copy(caveRoot.quaternion);
       verticalOffset = 0; verticalVelocity = 0; onGround = true;
