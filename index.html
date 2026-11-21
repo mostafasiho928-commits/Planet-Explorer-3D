@@ -1504,6 +1504,226 @@
       shipMode = false; shipAirborne = false; shipCanExit = false; shipFuel = 100; fuelWarning = false;
     }
 
+    function createPlane() {
+      if (planeRoot) scene.remove(planeRoot);
+      const frame = surfaceFrame(surfaceNormal);
+      const forward = frame.north.clone().multiplyScalar(Math.cos(spawnYaw)).addScaledVector(frame.east, Math.sin(spawnYaw)).normalize();
+      planeNormal = surfaceNormal.clone().multiplyScalar(Math.cos(34 / PLANET_RADIUS))
+        .addScaledVector(forward, Math.sin(34 / PLANET_RADIUS)).normalize();
+      planeRoot = new THREE.Group();
+      const fuselage = new THREE.MeshStandardMaterial({ color: 0xb8cbd2, metalness: 0.5, roughness: 0.38 });
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0x345b70, metalness: 0.36, roughness: 0.44 });
+      const glass = new THREE.MeshStandardMaterial({ color: 0x56b7c9, metalness: 0.62, roughness: 0.18, emissive: 0x0c3948, emissiveIntensity: 0.55 });
+      const accent = new THREE.MeshStandardMaterial({ color: 0xf0b35d, metalness: 0.25, roughness: 0.38 });
+      const dark = new THREE.MeshStandardMaterial({ color: 0x182a35, metalness: 0.38, roughness: 0.7 });
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.72, 7.4, 10), fuselage);
+      body.rotation.x = Math.PI / 2; body.position.z = -0.05; planeRoot.add(body);
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.62, 2.1, 10), fuselage);
+      nose.rotation.x = Math.PI / 2; nose.position.z = 4.55; planeRoot.add(nose);
+      const wings = new THREE.Mesh(new THREE.BoxGeometry(12.8, 0.22, 2.25), wingMat);
+      wings.position.set(0, -0.05, -0.35); planeRoot.add(wings);
+      const tailWing = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.16, 1.2), accent);
+      tailWing.position.set(0, 0.18, -3.2); planeRoot.add(tailWing);
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.6, 1.65), wingMat);
+      fin.position.set(0, 0.83, -3.2); planeRoot.add(fin);
+      const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.86, 12, 9), glass);
+      cockpit.scale.set(0.82, 0.68, 1.4); cockpit.position.set(0, 0.67, 0.85); planeRoot.add(cockpit);
+      const propeller = new THREE.Group();
+      propeller.position.set(0, 0, 5.62);
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.0, 0.22), dark);
+      propeller.add(blade);
+      const secondBlade = blade.clone(); secondBlade.rotation.z = Math.PI / 2; propeller.add(secondBlade);
+      propeller.add(new THREE.Mesh(new THREE.SphereGeometry(0.27, 8, 7), accent));
+      planeRoot.add(propeller);
+      for (const side of [-1, 1]) {
+        const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 1.2, 6), dark);
+        strut.position.set(side * 2.2, -0.58, 0.45); strut.rotation.z = side * -0.55; planeRoot.add(strut);
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.22, 10), dark);
+        wheel.rotation.z = Math.PI / 2; wheel.position.set(side * 2.5, -1.04, 0.48); planeRoot.add(wheel);
+        const navLight = new THREE.Mesh(new THREE.SphereGeometry(0.22, 7, 6),
+          new THREE.MeshBasicMaterial({ color: side < 0 ? 0x64d5ff : 0xff615c }));
+        navLight.position.set(side * 6.2, 0.14, -0.35); planeRoot.add(navLight);
+      }
+      const beacon = new THREE.Mesh(new THREE.ConeGeometry(0.7, 5, 6),
+        new THREE.MeshBasicMaterial({ color: 0x8af0c3, transparent: true, opacity: 0.78 }));
+      beacon.position.set(0, 5.5, 0); planeRoot.add(beacon);
+      planeRoot.userData.propeller = propeller;
+      planeRoot.position.copy(surfacePoint(planeNormal, 1.5));
+      const planeRight = new THREE.Vector3().crossVectors(planeNormal, forward).normalize();
+      const planeForward = new THREE.Vector3().crossVectors(planeRight, planeNormal).normalize();
+      planeRoot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(planeRight, planeNormal, planeForward));
+      planeRoot.traverse(node => { if (node.isMesh) { node.castShadow = !IS_TOUCH_DEVICE; node.receiveShadow = !IS_TOUCH_DEVICE; } });
+      scene.add(planeRoot);
+      planeRoot.visible = true;
+      planeMode = false; planeThrottle = 0; planeSpeed = 0; planeBank = 0;
+      planeClimbHeld = 0; planeLandingRequested = false; planeLanded = true;
+    }
+
+    function planeAction() {
+      if (shipMode || drivingRover) { showToast('ترجل من المركبة الحالية أولاً'); return; }
+      if (!planeMode) {
+        if (!planeRoot || !planeNormal) return;
+        const distance = Math.acos(clamp(surfaceNormal.dot(planeNormal), -1, 1)) * PLANET_RADIUS;
+        if (distance > 45) { showToast('اقترب من الطائرة أولاً'); return; }
+        planeMode = true; planeThrottle = 0.12; planeSpeed = 10;
+        planeLanded = true; planeLandingRequested = false; planeClimbHeld = 0;
+        player.visible = false; planeRoot.visible = true;
+        showToast('صعدت إلى الطائرة — ادفع العصا للأمام لزيادة السرعة، واضغط صعود للارتفاع');
+        return;
+      }
+      if (planeLanded && planeSpeed < 28) {
+        planeMode = false; planeClimbHeld = 0; planeLandingRequested = false;
+        player.visible = true;
+        planeNormal = surfaceNormal.clone();
+        planeRoot.position.copy(surfacePoint(surfaceNormal, 1.5));
+        planeRoot.quaternion.copy(player.quaternion);
+        planeRoot.visible = true;
+        showToast('ترجلت من الطائرة');
+        return;
+      }
+      planeLandingRequested = true;
+      planeThrottle = Math.min(planeThrottle, 0.28);
+      planeClimbHeld = -1;
+      showToast('بدأ الهبوط — خفّض السرعة واقترب من الأرض');
+    }
+
+    function spawnProjectile(origin, direction, owner) {
+      if (!projectileGeometry) {
+        projectileGeometry = new THREE.SphereGeometry(0.48, 6, 5);
+        playerBoltMaterial = new THREE.MeshBasicMaterial({ color: 0x8af6f0 });
+        enemyBoltMaterial = new THREE.MeshBasicMaterial({ color: 0xff5b57 });
+      }
+      const mesh = new THREE.Mesh(projectileGeometry, owner === 'player' ? playerBoltMaterial : enemyBoltMaterial);
+      mesh.position.copy(origin);
+      mesh.scale.setScalar(owner === 'player' ? 1 : 1.25);
+      scene.add(mesh);
+      const speed = owner === 'player' ? 320 : 118;
+      projectiles.push({ mesh, velocity: direction.clone().normalize().multiplyScalar(speed), owner, life: owner === 'player' ? 2.1 : 3.8 });
+    }
+
+    function fireWeapon() {
+      if (!running || traveling || weaponCooldown > 0 || !camera || caveMode) return;
+      if (projectiles.filter(p => p.owner === 'player').length >= (LOW_END_DEVICE ? 4 : 8)) return;
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction).normalize();
+      spawnProjectile(camera.position.clone().addScaledVector(direction, 5.5), direction, 'player');
+      weaponCooldown = 0.24;
+    }
+
+    function clearCombatEntities() {
+      for (const enemy of enemyDrones) scene.remove(enemy.root);
+      for (const shot of projectiles) scene.remove(shot.mesh);
+      enemyDrones = []; projectiles = [];
+      if (droneBodyGeometry) droneBodyGeometry.dispose();
+      if (droneRingGeometry) droneRingGeometry.dispose();
+      if (droneBodyMaterial) droneBodyMaterial.dispose();
+      if (droneRingMaterial) droneRingMaterial.dispose();
+      if (droneEyeMaterial) droneEyeMaterial.dispose();
+      if (projectileGeometry) projectileGeometry.dispose();
+      if (playerBoltMaterial) playerBoltMaterial.dispose();
+      if (enemyBoltMaterial) enemyBoltMaterial.dispose();
+      droneBodyGeometry = droneRingGeometry = droneBodyMaterial = droneRingMaterial = droneEyeMaterial = null;
+      projectileGeometry = playerBoltMaterial = enemyBoltMaterial = null;
+    }
+
+    function createEnemyDrones() {
+      enemyDrones = [];
+      const remaining = Math.max(0, (LOW_END_DEVICE ? 4 : 6) - enemyKills);
+      droneBodyGeometry = new THREE.OctahedronGeometry(2.1, 0);
+      droneRingGeometry = new THREE.TorusGeometry(2.9, 0.16, 5, 12);
+      droneBodyMaterial = new THREE.MeshStandardMaterial({ color: 0xd35c54, emissive: 0x7d151a, emissiveIntensity: 1.1, metalness: 0.35, roughness: 0.42 });
+      droneRingMaterial = new THREE.MeshStandardMaterial({ color: 0x49515e, metalness: 0.72, roughness: 0.32 });
+      droneEyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffb1a0 });
+      const rng = randomFromSeed((activePlanet.seed ^ 0xD20E5) >>> 0);
+      const originFrame = surfaceFrame(surfaceNormal);
+      for (let i = 0; i < remaining; i++) {
+        const bearing = rng() * Math.PI * 2;
+        const distance = 270 + rng() * 530;
+        const tangent = originFrame.north.clone().multiplyScalar(Math.cos(bearing))
+          .addScaledVector(originFrame.east, Math.sin(bearing));
+        const normal = surfaceNormal.clone().multiplyScalar(Math.cos(distance / PLANET_RADIUS))
+          .addScaledVector(tangent, Math.sin(distance / PLANET_RADIUS)).normalize();
+        const root = new THREE.Group();
+        const core = new THREE.Mesh(droneBodyGeometry, droneBodyMaterial);
+        const ring = new THREE.Mesh(droneRingGeometry, droneRingMaterial);
+        ring.rotation.x = Math.PI / 2;
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.62, 7, 6), droneEyeMaterial);
+        eye.position.set(0, 0, 2.0);
+        root.add(core, ring, eye);
+        root.position.copy(surfacePoint(normal, 26));
+        scene.add(root);
+        enemyDrones.push({ root, core, ring, normal, health: 3, cooldown: 1.2 + rng() * 1.5, phase: rng() * Math.PI * 2, alive: true });
+      }
+    }
+
+    function updateCombat(dt) {
+      weaponCooldown = Math.max(0, weaponCooldown - dt);
+      if (playerHealth < 100 && elapsed - lastDamageAt > 4) playerHealth = Math.min(100, playerHealth + dt * 3.2);
+      for (const enemy of enemyDrones) {
+        if (!enemy.alive) continue;
+        const dot = clamp(enemy.normal.dot(surfaceNormal), -1, 1);
+        const angle = Math.acos(dot);
+        if (angle > 0.003 && angle < 0.24) {
+          const tangent = surfaceNormal.clone().addScaledVector(enemy.normal, -dot).normalize();
+          const step = Math.min(angle, 32 / PLANET_RADIUS * dt);
+          enemy.normal.copy(enemy.normal.multiplyScalar(Math.cos(step)).addScaledVector(tangent, Math.sin(step))).normalize();
+        }
+        enemy.root.position.copy(surfacePoint(enemy.normal, 25 + Math.sin(elapsed * 2.3 + enemy.phase) * 3));
+        enemy.root.rotation.y += dt * (0.5 + enemy.phase * 0.2);
+        const distance = Math.acos(clamp(surfaceNormal.dot(enemy.normal), -1, 1)) * PLANET_RADIUS;
+        enemy.cooldown -= dt;
+        if (distance < 235 && enemy.cooldown <= 0 && !caveMode &&
+            projectiles.filter(p => p.owner === 'enemy').length < (LOW_END_DEVICE ? 3 : 7)) {
+          const direction = player.position.clone().sub(enemy.root.position).normalize();
+          spawnProjectile(enemy.root.position.clone().addScaledVector(direction, 3), direction, 'enemy');
+          enemy.cooldown = 2.0 + enemy.phase * 0.5;
+        }
+      }
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const shot = projectiles[i];
+        shot.life -= dt;
+        shot.mesh.position.addScaledVector(shot.velocity, dt);
+        let consumed = false;
+        if (shot.owner === 'player') {
+          for (const enemy of enemyDrones) {
+            if (!enemy.alive || shot.mesh.position.distanceToSquared(enemy.root.position) > 34) continue;
+            enemy.health--;
+            enemy.core.scale.setScalar(Math.max(0.45, enemy.health / 3));
+            if (enemy.health <= 0) {
+              enemy.alive = false; enemy.root.visible = false;
+              enemyKills++; salvageCredits += 15;
+              killCountLabel.textContent = String(enemyKills);
+              salvageCountLabel.textContent = String(salvageCredits);
+              updateMissionProgress(); savePlanetProgress();
+              showToast('تم إسقاط المسيّرة · +15 قطعة خردة');
+            }
+            consumed = true; break;
+          }
+        } else if (shot.mesh.position.distanceToSquared(player.position) < 22) {
+          playerHealth = Math.max(0, playerHealth - 11);
+          lastDamageAt = elapsed; consumed = true;
+          showToast('أصابتك مسيّرة دفاعية — تحرك وواصل الرد');
+          if (playerHealth <= 0) {
+            playerHealth = 70; salvageCredits = Math.max(0, salvageCredits - 10);
+            surfaceNormal.copy(homeNormal || surfaceNormal);
+            verticalOffset = 0; verticalVelocity = 0; onGround = true;
+            planeMode = false; shipMode = false; drivingRover = false;
+            player.visible = true;
+            if (planeRoot) planeRoot.visible = true;
+            if (shipRoot) shipRoot.visible = true;
+            if (roverRoot) roverRoot.visible = true;
+            player.position.copy(surfacePoint(surfaceNormal));
+            showToast('أُعيد إحياؤك في نقطة الهبوط وخسرت 10 قطع خردة');
+          }
+        }
+        if (consumed || shot.life <= 0 || shot.mesh.position.distanceTo(player.position) > 2400) {
+          scene.remove(shot.mesh); projectiles.splice(i, 1);
+        }
+      }
+      healthFill.style.width = playerHealth + '%';
+      healthValue.textContent = String(Math.round(playerHealth));
+    }
+
     function shipAction() {
       if (planeMode) { showToast('أوقف الطائرة وترجل منها أولاً'); return; }
       if (drivingRover) { showToast('ترجل من العربة قبل صعود المكوك'); return; }
