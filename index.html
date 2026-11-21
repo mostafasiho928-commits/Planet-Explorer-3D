@@ -422,7 +422,7 @@
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraYawTarget = 0.25;
-    let cameraPitch = -0.22, cameraPitchTarget = -0.22;
+    let cameraPitch = -0.12, cameraPitchTarget = -0.12;
     let cameraDistance = 18, cameraDistanceTarget = 18;
     let joystickPointer = null, cameraPointer = null;
     let cameraTouches = new Map(), pinchStartDistance = 0, pinchStartZoom = 14;
@@ -581,12 +581,12 @@
       moonRig = new THREE.Group();
       const moonBody = new THREE.Mesh(
         new THREE.SphereGeometry(310, 24, 16),
-        new THREE.MeshStandardMaterial({ color: 0x8298a4, roughness: 0.94, metalness: 0.04 })
+        new THREE.MeshStandardMaterial({ color: 0x8298a4, roughness: 0.94, metalness: 0.04, fog: false })
       );
       moonRig.add(moonBody);
       const moonRing = new THREE.Mesh(
         new THREE.RingGeometry(405, 610, 48),
-        new THREE.MeshBasicMaterial({ color: 0x9db8c2, side: THREE.DoubleSide, transparent: true, opacity: 0.66 })
+        new THREE.MeshBasicMaterial({ color: 0x9db8c2, side: THREE.DoubleSide, transparent: true, opacity: 0.66, fog: false })
       );
       moonRing.rotation.x = -0.28;
       moonRing.rotation.y = 0.14;
@@ -1076,6 +1076,7 @@
       const found = nearestOre(15);
       if (!found) { showToast('اقترب من صخرة تحتوي على خام للتعدين'); return; }
       const node = found.node;
+      mineSwingTimer = 0.34;
       node.hits--;
       const dummy = new THREE.Object3D();
       oreMesh.getMatrixAt(node.instance, dummy.matrix);
@@ -1467,6 +1468,20 @@
       };
       leftArm = makeArm(-1);
       rightArm = makeArm(1);
+      const toolGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.08, 0.9, 8),
+        new THREE.MeshStandardMaterial({ color: 0x43545b, metalness: 0.65, roughness: 0.42 }));
+      toolGrip.position.set(0.12, -1.02, 0.1);
+      toolGrip.rotation.z = -0.24;
+      rightArm.add(toolGrip);
+      const toolHead = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.16, 0.22),
+        new THREE.MeshStandardMaterial({ color: 0xa8c4c6, metalness: 0.82, roughness: 0.3 }));
+      toolHead.position.set(0.24, -0.64, 0.1);
+      toolHead.rotation.z = 0.22;
+      rightArm.add(toolHead);
+      const toolLamp = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0x8bf5e8, emissive: 0x1b8f87, emissiveIntensity: 1.8 }));
+      toolLamp.position.set(0.12, -0.91, 0.25);
+      rightArm.add(toolLamp);
 
       const makeLeg = (side) => {
         const pivot = new THREE.Group();
@@ -1689,7 +1704,7 @@
       const frame = surfaceFrame(surfaceNormal);
       const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(player.quaternion).normalize();
       cameraYawTarget = Math.atan2(facing.dot(frame.east), facing.dot(frame.north));
-      cameraPitchTarget = -0.22; cameraDistanceTarget = 18;
+      cameraPitchTarget = -0.12; cameraDistanceTarget = 18;
     }
 
     function jump() {
@@ -1775,7 +1790,7 @@
       const frame = surfaceFrame(surfaceNormal);
       const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
       const target = player.position.clone().addScaledVector(surfaceNormal, 2.0);
-      const orbitElevation = 0.24;
+      const orbitElevation = 0.18;
       const desired = target.clone()
         .addScaledVector(forward, -Math.cos(orbitElevation) * cameraDistance)
         .addScaledVector(surfaceNormal, Math.sin(orbitElevation) * cameraDistance);
@@ -1793,6 +1808,7 @@
         const cloudForward = frame.north.clone();
         const cloudRight = new THREE.Vector3().crossVectors(surfaceNormal, cloudForward).normalize();
         cloudMesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(cloudRight, surfaceNormal, cloudForward));
+        cloudMesh.rotateY(elapsed * 0.00012);
       }
       if (moonRig) {
         const moonDirection = forward.clone().multiplyScalar(0.78).addScaledVector(surfaceNormal, 0.58).normalize();
@@ -1834,12 +1850,16 @@
       lastTime = now;
       elapsed += dt;
       updatePlayer(dt);
+      if (mineSwingTimer > 0 && rightArm) {
+        mineSwingTimer = Math.max(0, mineSwingTimer - dt);
+        const phase = 1 - mineSwingTimer / 0.34;
+        rightArm.rotation.x = -Math.sin(phase * Math.PI) * 1.28;
+      }
       updateCamera(dt);
       updateResourceHint();
       updateInteractables();
       updateSurvival(dt);
       updateWeather(dt);
-      if (cloudMesh) cloudMesh.rotation.y += dt * 0.00011;
       if (moonRig) moonRig.rotation.z += dt * 0.0008;
       renderer.render(scene, camera);
     }
@@ -1890,7 +1910,7 @@
         createRover();
         createShip();
         cameraYaw = cameraYawTarget = spawnYaw;
-        cameraPitch = cameraPitchTarget = -0.22;
+        cameraPitch = cameraPitchTarget = -0.12;
         cameraDistance = cameraDistanceTarget = 18;
         cameraTouches.clear(); cameraPointer = null; pinchStartDistance = 0;
         smoothedMove.x = smoothedMove.y = 0;
