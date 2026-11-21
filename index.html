@@ -25,6 +25,9 @@
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #07121b; }
     body { font-family: Tahoma, Arial, sans-serif; color: var(--text); user-select: none; -webkit-user-select: none; touch-action: none; }
     #game { position: fixed; inset: 0; overflow: hidden; }
+    @media (orientation: portrait) {
+      #game { inset: auto; top: 50%; left: 50%; width: 100vh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg); transform-origin: center center; }
+    }
     canvas { display: block; width: 100%; height: 100%; touch-action: none; }
     .glass { background: var(--panel); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0,0,0,.18); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
     #topbar { position: absolute; z-index: 5; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); display: flex; align-items: center; justify-content: space-between; gap: 10px; pointer-events: none; }
@@ -139,8 +142,10 @@
     const PLANET_COUNT = 150000000;
     const DEFAULT_PLANET_ID = 20261121;
     const PLANET_RADIUS = 170;
-    const PLANET_WIDTH_SEGMENTS = 128;
-    const PLANET_HEIGHT_SEGMENTS = 64;
+    const IS_TOUCH_DEVICE = window.matchMedia('(pointer: coarse)').matches;
+    const LOW_END_DEVICE = IS_TOUCH_DEVICE && ((navigator.deviceMemory || 4) <= 4 || (navigator.hardwareConcurrency || 4) <= 4);
+    const PLANET_WIDTH_SEGMENTS = LOW_END_DEVICE ? 72 : 112;
+    const PLANET_HEIGHT_SEGMENTS = LOW_END_DEVICE ? 36 : 56;
     const PLAYER_SPEED = 9.2;
     const BASE_GRAVITY = 24;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -287,8 +292,8 @@
       const forward = forwardHint ? forwardHint.clone() : frame.north.clone();
       forward.addScaledVector(surfaceNormal, -forward.dot(surfaceNormal)).normalize();
       if (forward.lengthSq() < 0.0001) forward.copy(frame.north);
-      const right = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
-      const correctedForward = new THREE.Vector3().crossVectors(surfaceNormal, right).normalize();
+      const right = new THREE.Vector3().crossVectors(surfaceNormal, forward).normalize();
+      const correctedForward = new THREE.Vector3().crossVectors(right, surfaceNormal).normalize();
       player.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, surfaceNormal, correctedForward));
     }
 
@@ -307,6 +312,7 @@
     const status = document.getElementById('status');
     const toast = document.getElementById('toast');
     const startScreen = document.getElementById('start-screen');
+    const startButton = document.getElementById('start-button');
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
     const jumpButton = document.getElementById('jump');
@@ -455,7 +461,7 @@
       return color;
     }
 
-    function createPlanetSurface() {
+    async function createPlanetSurface() {
       for (const mesh of [planetSurface, oceanMesh, atmosphereMesh]) {
         if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
       }
@@ -472,6 +478,10 @@
         directions[i] = direction.clone();
         heights[i] = h;
         positions.setXYZ(i, direction.x * (PLANET_RADIUS + h), direction.y * (PLANET_RADIUS + h), direction.z * (PLANET_RADIUS + h));
+        if (i > 0 && i % 256 === 0) {
+          startButton.textContent = "توليد التضاريس: " + Math.round(i / positions.count * 100) + "%";
+          await new Promise(resolve => requestAnimationFrame(resolve));
+        }
       }
       positions.needsUpdate = true;
       geometry.computeVertexNormals();
@@ -491,7 +501,7 @@
       scene.add(planetSurface);
 
       if (activePlanet.hasOcean) {
-        const waterGeometry = new THREE.SphereGeometry(PLANET_RADIUS + activePlanet.seaLevel, 128, 64);
+        const waterGeometry = new THREE.SphereGeometry(PLANET_RADIUS + activePlanet.seaLevel, LOW_END_DEVICE ? 64 : 96, LOW_END_DEVICE ? 32 : 48);
         const waterMaterial = new THREE.MeshPhongMaterial({
           color: activePlanet.biome.name === 'صحارى كهرمانية' ? 0x267d9b : 0x167da5,
           specular: 0x9bdcf0, shininess: 72
@@ -502,7 +512,7 @@
         scene.add(oceanMesh);
       }
 
-      const atmosphereGeometry = new THREE.SphereGeometry(PLANET_RADIUS + 13, 72, 36);
+      const atmosphereGeometry = new THREE.SphereGeometry(PLANET_RADIUS + 13, LOW_END_DEVICE ? 40 : 64, LOW_END_DEVICE ? 20 : 32);
       const atmosphereMaterial = new THREE.MeshBasicMaterial({
         color: activePlanet.biome.horizon, side: THREE.BackSide, transparent: true,
         opacity: clamp(activePlanet.atmosphere * 0.095, 0.025, 0.16), depthWrite: false
@@ -578,7 +588,13 @@
       return player;
     }
 
-    function init() {
+    function getGameViewport() {
+      return window.innerHeight > window.innerWidth
+        ? { width: window.innerHeight, height: window.innerWidth }
+        : { width: window.innerWidth, height: window.innerHeight };
+    }
+
+    async function init() {
       if (!window.THREE) {
         status.textContent = 'تعذر تحميل Three.js. تحقق من اتصال الإنترنت ثم أعد تحميل الصفحة.';
         showToast('لم يتم تحميل مكتبة الرسوميات');
@@ -587,20 +603,22 @@
       WORLD_UP = new THREE.Vector3(0, 1, 0);
       WORLD_X = new THREE.Vector3(1, 0, 0);
       surfaceNormal = new THREE.Vector3(0, 0, 1);
+      const viewport = getGameViewport();
       scene = new THREE.Scene();
       scene.fog = new THREE.Fog(activePlanet.biome.fog, 90, 285);
-      camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, .1, 900);
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 850 ? 1.2 : 1.5));
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.shadowMap.enabled = true;
+      camera = new THREE.PerspectiveCamera(62, viewport.width / viewport.height, .1, 900);
+      renderer = new THREE.WebGLRenderer({ antialias: !LOW_END_DEVICE, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1 : 1.35));
+      renderer.setSize(viewport.width, viewport.height);
+      renderer.shadowMap.enabled = !LOW_END_DEVICE;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.outputEncoding = THREE.sRGBEncoding;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.08;
       game.insertBefore(renderer.domElement, game.firstChild);
       makeSky();
-      createPlanetSurface();
+      startButton.textContent = "تهيئة سطح الكوكب...";
+      await createPlanetSurface();
       applyPlanetEnvironment();
       createAstronaut();
       camera.position.set(player.position.x + 5, player.position.y + 6, player.position.z + 9);
@@ -608,17 +626,18 @@
       window.addEventListener('resize', onResize, { passive: true });
       window.addEventListener('orientationchange', () => setTimeout(onResize, 180), { passive: true });
       bindControls();
+      startButton.textContent = 'ابدأ الاستكشاف';
       status.textContent = 'تحرك فوق سطح الكوكب الكروي • اسحب لتدوير الكاميرا';
       return true;
     }
 
     function onResize() {
       if (!camera || !renderer) return;
-      const width = Math.max(1, window.innerWidth), height = Math.max(1, window.innerHeight);
-      camera.aspect = width / height;
+      const viewport = getGameViewport();
+      camera.aspect = viewport.width / viewport.height;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, width < 850 ? 1.2 : 1.5));
-      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1 : 1.35));
+      renderer.setSize(viewport.width, viewport.height);
     }
 
     function bindControls() {
@@ -704,7 +723,7 @@
       const input = getMovementInput();
       const frame = surfaceFrame(surfaceNormal);
       const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
-      const right = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
+      const right = new THREE.Vector3().crossVectors(surfaceNormal, forward).normalize();
       const direction = forward.clone().multiplyScalar(input.forward).addScaledVector(right, input.strafe);
       const distance = PLAYER_SPEED * input.amount * dt * (onGround ? 1 : 0.72);
       if (input.amount > 0.03 && distance > 0) {
