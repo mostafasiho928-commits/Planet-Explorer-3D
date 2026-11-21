@@ -314,7 +314,7 @@
         let coastBearing = 0.25;
         if (activePlanet.hasOcean) {
           const frame = surfaceFrame(candidate);
-          const step = 0.19;
+          const step = 0.015;
           let wetNeighbors = 0;
           for (let d = 0; d < 8; d++) {
             const bearing = d * Math.PI / 4;
