@@ -783,6 +783,8 @@
       makeSky();
       startButton.textContent = "تهيئة سطح الكوكب...";
       await createPlanetSurface();
+      startButton.textContent = "إنشاء الحياة والموارد...";
+      await createPlanetResources();
       applyPlanetEnvironment();
       createAstronaut();
       camera.position.set(player.position.x + 5, player.position.y + 6, player.position.z + 9);
@@ -809,6 +811,7 @@
         if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
         keys.add(e.key.toLowerCase());
         if (e.code === 'Space' && running) jump();
+        if (e.key.toLowerCase() === 'e' && running) scanForMineral();
       }, { passive: false });
       window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
       window.addEventListener('blur', () => keys.clear());
@@ -850,6 +853,7 @@
       joystick.addEventListener('pointerup', endStick);
       joystick.addEventListener('pointercancel', endStick);
       jumpButton.addEventListener('pointerdown', e => { e.preventDefault(); if (running) jump(); });
+      scanButton.addEventListener('pointerdown', e => { e.preventDefault(); scanForMineral(); });
     }
 
     function updateJoystick(e) {
@@ -974,6 +978,7 @@
       status.textContent = 'جارٍ توليد العالم الجديد...';
       try {
         await createPlanetSurface();
+        await createPlanetResources();
         surfaceNormal.copy(findSpawnNormal());
         verticalOffset = 0;
         verticalVelocity = 0;
