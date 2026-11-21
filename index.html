@@ -80,6 +80,7 @@
     .start-card p { margin: 12px 0 20px; color: var(--muted); font-size: 12px; line-height: 2; }
     #start-button { width: 100%; border: 0; border-radius: 13px; padding: 14px 18px; background: linear-gradient(110deg, #78dce8, #61b8d1); color: #06202b; font: 700 14px Tahoma, Arial, sans-serif; box-shadow: 0 8px 25px rgba(65,177,200,.2); }
     #start-button:active { transform: translateY(1px); }
+    #start-button:disabled { opacity: .7; cursor: wait; }
     .note { display: block; margin-top: 13px; color: #718e99; font-size: 10px; line-height: 1.8; }
     #toast { position: absolute; z-index: 12; left: 50%; bottom: 22%; transform: translate(-50%, 10px); opacity: 0; transition: .25s ease; padding: 10px 15px; border-radius: 12px; color: white; background: rgba(5,20,30,.82); border: 1px solid var(--line); font-size: 12px; pointer-events: none; }
     #toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -332,6 +333,15 @@
     const planetModal = document.getElementById('planet-modal');
     const planetInput = document.getElementById('planet-id-input');
     const planetPreview = document.getElementById('planet-preview');
+
+    async function waitForThree(timeoutMs = 15000) {
+      const started = performance.now();
+      while (!window.THREE && performance.now() - started < timeoutMs) {
+        startButton.textContent = 'تحميل محرك الرسوميات...';
+        await new Promise(resolve => setTimeout(resolve, 120));
+      }
+      return !!window.THREE;
+    }
 
     function formatPlanetId(id) { return id.toLocaleString('en-US'); }
 
@@ -1059,6 +1069,7 @@
       const fullscreenTask = enterFullscreen();
       try {
         await new Promise(resolve => requestAnimationFrame(resolve));
+        if (!window.THREE && !(await waitForThree())) throw new Error("انتهت مهلة تحميل Three.js");
         if (!scene) {
           const ready = await init();
           if (!ready) throw new Error('تعذر تهيئة مشهد اللعبة.');
