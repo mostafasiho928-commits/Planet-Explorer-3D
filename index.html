@@ -90,6 +90,14 @@
     #cave { border-color:rgba(177,156,215,.66); color:#dfd0ff; }
     #vehicle { border-color:rgba(112,216,232,.6); color:#a8edf2; }
     #ship { border-color:rgba(143,214,255,.72); color:#bfe8ff; }
+    #plane { border-color:rgba(139,224,174,.72); color:#b9f4d0; }
+    #fire { border-color:rgba(255,110,105,.78); color:#ffd3d0; background:rgba(74,17,24,.82); }
+    #descend { border-color:rgba(255,192,115,.72); color:#ffe0ad; }
+    #combat-hud { position:absolute; z-index:6; top:145px; left:12px; display:flex; align-items:center; gap:7px; padding:7px 10px; border-radius:11px; color:#e8f4f7; font-size:9px; pointer-events:none; }
+    #health-track { width:68px; height:6px; border-radius:6px; overflow:hidden; background:rgba(255,255,255,.16); }
+    #health-fill { display:block; height:100%; width:100%; background:linear-gradient(90deg,#e05d58,#e8c76e); transition:width .2s; }
+    #combat-hud strong { color:#f4d58e; min-width:14px; }
+    #reticle { position:absolute; z-index:4; left:50%; top:50%; width:9px; height:9px; transform:translate(-50%,-50%); border:1px solid rgba(231,249,255,.88); border-radius:50%; box-shadow:0 0 5px rgba(0,0,0,.8); pointer-events:none; opacity:.65; }
     #start-screen { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; padding: 22px; background: radial-gradient(ellipse at 50% 35%, rgba(13,49,66,.4), rgba(2,9,16,.78)); }
     .start-card { width: min(430px, 100%); padding: 27px; border-radius: 23px; text-align: center; }
     .start-orb { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; font-size: 35px; color: #a3eff4; background: radial-gradient(circle at 35% 30%, #a4ebdf, #287d8c 55%, #102b43 78%); box-shadow: 0 0 45px rgba(79,194,211,.23); }
@@ -136,6 +144,8 @@
     <div id="inventory" class="glass">بلورات: <strong id="mineral-count">0</strong> · خام: <strong id="ore-count">0</strong></div>
     <div id="mission" class="glass">مهمة الاستكشاف: اجمع 5 بلورات</div>
     <div id="survival" class="glass"><span>O₂</span><span id="oxygen-track"><i id="oxygen-fill"></i></span><strong id="oxygen-value">100%</strong><span>وقود</span><strong id="fuel-value">100%</strong></div>
+    <div id="combat-hud" class="glass"><span>درع</span><span id="health-track"><i id="health-fill"></i></span><strong id="health-value">100</strong><span>إسقاطات</span><strong id="kill-count">0</strong><span>خردة</span><strong id="salvage-count">0</strong></div>
+    <div id="reticle"></div>
     <div id="resource-hint" aria-live="polite"></div>
     <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز أو تشغيل المكوك<br>اسحب يميناً لتدوير الكاميرا يميناً، واسحب للأعلى للنظر إلى السماء · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة · <b>B</b> مكوك</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
@@ -146,6 +156,9 @@
       <button class="action hidden" id="cave" aria-label="دخول الكهف أو الخروج منه"><span>⌂</span><small>كهف</small></button>
       <button class="action hidden" id="vehicle" aria-label="قيادة المركبة أو الترجل"><span>▣</span><small>قيادة</small></button>
       <button class="action hidden" id="ship" aria-label="قيادة المكوك والإقلاع والهبوط"><span>🚀</span><small>مكوك</small></button>
+      <button class="action hidden" id="plane" aria-label="قيادة الطائرة والإقلاع والهبوط"><span>✈</span><small>طائرة</small></button>
+      <button class="action hidden" id="fire" aria-label="إطلاق النار على الطائرات المسيّرة"><span>✹</span><small>إطلاق</small></button>
+      <button class="action hidden" id="descend" aria-label="خفض ارتفاع الطائرة"><span>↓</span><small>هبوط</small></button>
       <button class="action" id="camera-reset" aria-label="إعادة الكاميرا خلف الشخصية" title="إعادة الكاميرا"><span>↻</span><small>كاميرا</small></button>
       <button class="action" id="sprint" aria-label="الركض" title="اضغط باستمرار للركض"><span>»</span><small>ركض</small></button>
       <button class="action" id="jump" aria-label="قفز">↑<small>قفز</small></button>
@@ -423,6 +436,10 @@
     }
 
     let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight, starField = null;
+    let enemyDrones = [], projectiles = [], projectileGeometry = null, playerBoltMaterial = null, enemyBoltMaterial = null;
+    let droneBodyGeometry = null, droneRingGeometry = null, droneBodyMaterial = null, droneRingMaterial = null, droneEyeMaterial = null;
+    let planeRoot = null, planeNormal = null, planeMode = false, planeThrottle = 0, planeSpeed = 0, planeBank = 0, planeClimbHeld = 0, planeLandingRequested = false, planeLanded = true, planeFlightDistance = 0, planeCertified = false;
+    let enemyKills = 0, salvageCredits = 0, playerHealth = 100, lastDamageAt = 0, weaponCooldown = 0, caveVisited = false, homeNormal = null;
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh, oceanTexture = null;
     let terrainVertexData = null, terrainGridWidth = 0, terrainGridHeight = 0;
@@ -463,6 +480,13 @@
     const vehicleButton = document.getElementById('vehicle');
     const shipButton = document.getElementById('ship');
     const fuelValue = document.getElementById('fuel-value');
+    const healthFill = document.getElementById('health-fill');
+    const healthValue = document.getElementById('health-value');
+    const killCountLabel = document.getElementById('kill-count');
+    const salvageCountLabel = document.getElementById('salvage-count');
+    const planeButton = document.getElementById('plane');
+    const fireButton = document.getElementById('fire');
+    const descendButton = document.getElementById('descend');
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
     const jumpButton = document.getElementById('jump');
@@ -1116,6 +1140,11 @@
       mineralsCollected = 0;
       oresCollected = 0;
       missionCompleted = false;
+      enemyKills = 0; salvageCredits = 0; caveVisited = false;
+      planeFlightDistance = 0; planeCertified = false;
+      playerHealth = 100;
+      healthFill.style.width = '100%'; healthValue.textContent = '100';
+      killCountLabel.textContent = '0'; salvageCountLabel.textContent = '0';
       mineralCount.textContent = '0';
       oreCountLabel.textContent = '0';
       oxygen = 100;
@@ -1174,7 +1203,12 @@
           ores: oreNodes.map(node => ({ instance: node.instance, hits: node.hits, collected: node.collected })),
           mineralsCollected,
           oresCollected,
-          missionCompleted
+          missionCompleted,
+          enemyKills,
+          salvageCredits,
+          caveVisited,
+          planeFlightDistance,
+          planeCertified
         };
         localStorage.setItem('madar.progress.' + activePlanet.id, JSON.stringify(data));
       } catch (_) { /* storage is optional; a full quota must not stop gameplay */ }
@@ -1217,8 +1251,15 @@
       mineralsCollected = clamp(Number(data.mineralsCollected) || 0, 0, mineralNodes.length);
       oresCollected = clamp(Number(data.oresCollected) || 0, 0, oreNodes.length);
       missionCompleted = !!data.missionCompleted;
+      enemyKills = clamp(Number(data.enemyKills) || 0, 0, 50);
+      salvageCredits = clamp(Number(data.salvageCredits) || 0, 0, 99999);
+      caveVisited = !!data.caveVisited;
+      planeFlightDistance = clamp(Number(data.planeFlightDistance) || 0, 0, 10000000);
+      planeCertified = !!data.planeCertified;
       mineralCount.textContent = String(mineralsCollected);
       oreCountLabel.textContent = String(oresCollected);
+      killCountLabel.textContent = String(enemyKills);
+      salvageCountLabel.textContent = String(salvageCredits);
       trackedMineral = nearestMineral(4800)?.node || null;
       updateMissionProgress();
     }
@@ -1285,25 +1326,26 @@
 
     function updateMissionProgress() {
       if (missionCompleted) {
-        missionLabel.textContent = 'اكتملت المهمة الكبرى — مستكشف محترف';
+        missionLabel.textContent = 'اكتملت عملية حارس الحدود — المكافأة ' + salvageCredits + ' قطعة';
+        return;
+      }
+      if (enemyKills < 3) {
+        missionLabel.textContent = '1/5 حارس الحدود: أسقط 3 مسيّرات ' + enemyKills + '/3';
       } else if (mineralsCollected < 5) {
-        missionLabel.textContent = 'جمع البلورات: ' + mineralsCollected + '/5';
+        missionLabel.textContent = '2/5 استعادة البيانات: اجمع 5 بلورات ' + mineralsCollected + '/5';
       } else if (oresCollected < 3) {
-        const oreTarget = nearestOre(5200);
-        missionLabel.textContent = oreTarget
-          ? 'استخراج الخام: ' + oresCollected + '/3 · ' + Math.round(oreTarget.distance) + 'م · ' + mineralBearing(oreTarget.node.normal)
-          : 'استخراج الخام: ' + oresCollected + '/3 · ابحث في المنطقة الصخرية';
-      } else if (mineralsCollected >= 5 && oresCollected >= 3 && caveMode) {
-        missionCompleted = true;
-        missionLabel.textContent = 'اكتملت المهمة الكبرى — مستكشف محترف';
-        savePlanetProgress();
-        showToast('اكتملت مهمة الكوكب الكبرى!');
-      } else if (mineralsCollected >= 5 && oresCollected >= 3) {
-        missionLabel.textContent = 'الهدف الأخير: ادخل الكهف';
-      } else if (mineralsCollected >= 5) {
-        missionLabel.textContent = 'الهدف التالي: استخرج 3 عينات خام ' + oresCollected + '/3';
+        missionLabel.textContent = '3/5 التعدين: استخرج 3 خامات ' + oresCollected + '/3';
+      } else if (!caveVisited) {
+        missionLabel.textContent = '4/5 سر الكهف: ادخل الكهف واستكشفه';
+      } else if (!planeCertified) {
+        missionLabel.textContent = '5/5 دورية جوية: حلّق 600م ثم اهبط ' + Math.floor(planeFlightDistance) + '/600م';
       } else {
-        missionLabel.textContent = 'مهمة الاستكشاف: اجمع 5 بلورات ' + mineralsCollected + '/5';
+        missionCompleted = true;
+        salvageCredits += 100;
+        salvageCountLabel.textContent = String(salvageCredits);
+        missionLabel.textContent = 'اكتملت عملية حارس الحدود — +100 قطعة';
+        savePlanetProgress();
+        showToast('نجحت العملية! حصلت على 100 قطعة مكافأة');
       }
     }
 
@@ -1332,6 +1374,7 @@
       const distance = Math.acos(clamp(surfaceNormal.dot(caveNormal), -1, 1)) * PLANET_RADIUS;
       if (distance > 18) { showToast('اقترب من مدخل الكهف أولاً'); return; }
       caveMode = true;
+      caveVisited = true;
       caveLocalPosition = new THREE.Vector3(0, 0.08, 18);
       player.position.copy(caveRoot.localToWorld(caveLocalPosition.clone()));
       player.quaternion.copy(caveRoot.quaternion);
@@ -1387,6 +1430,7 @@
     }
 
     function toggleVehicle() {
+      if (planeMode) { showToast('أوقف الطائرة وترجل منها أولاً'); return; }
       if (shipMode) { showToast('اخرج من المكوك أولاً'); return; }
       if (drivingRover) {
         drivingRover = false;
@@ -1461,6 +1505,7 @@
     }
 
     function shipAction() {
+      if (planeMode) { showToast('أوقف الطائرة وترجل منها أولاً'); return; }
       if (drivingRover) { showToast('ترجل من العربة قبل صعود المكوك'); return; }
       if (!shipMode) {
         if (!shipRoot || !shipNormal) return;
