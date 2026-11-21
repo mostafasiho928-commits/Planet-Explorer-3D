@@ -1202,6 +1202,13 @@
     function updateMissionProgress() {
       if (missionCompleted) {
         missionLabel.textContent = 'اكتملت المهمة الكبرى — مستكشف محترف';
+      } else if (mineralsCollected < 5) {
+        missionLabel.textContent = 'جمع البلورات: ' + mineralsCollected + '/5';
+      } else if (oresCollected < 3) {
+        const oreTarget = nearestOre(5200);
+        missionLabel.textContent = oreTarget
+          ? 'استخراج الخام: ' + oresCollected + '/3 · ' + Math.round(oreTarget.distance) + 'م · ' + mineralBearing(oreTarget.node.normal)
+          : 'استخراج الخام: ' + oresCollected + '/3 · ابحث في المنطقة الصخرية';
       } else if (mineralsCollected >= 5 && oresCollected >= 3 && caveMode) {
         missionCompleted = true;
         missionLabel.textContent = 'اكتملت المهمة الكبرى — مستكشف محترف';
@@ -1226,6 +1233,9 @@
         orientPlayer(null);
         if (cloudMesh) cloudMesh.visible = true;
         if (moonRig) moonRig.visible = true;
+        if (sky) sky.visible = true;
+        if (sunSprite) sunSprite.visible = true;
+        if (weatherMesh) weatherMesh.visible = true;
         scene.fog = new THREE.Fog(activePlanet.biome.fog, 260, 4300);
         caveButton.querySelector('small').textContent = 'كهف';
         showToast('خرجت إلى سطح الكوكب');
@@ -1243,6 +1253,9 @@
       cameraPitch = cameraPitchTarget = -0.08;
       if (cloudMesh) cloudMesh.visible = false;
       if (moonRig) moonRig.visible = false;
+      if (sky) sky.visible = false;
+      if (sunSprite) sunSprite.visible = false;
+      if (weatherMesh) weatherMesh.visible = false;
       scene.fog = new THREE.Fog(0x111923, 22, 260);
       caveButton.querySelector('small').textContent = 'خروج';
       status.textContent = 'داخل الكهف · راقب الأكسجين';
@@ -1409,6 +1422,7 @@
         caveButton.classList.toggle('hidden', distance > 18);
         caveButton.querySelector('small').textContent = 'كهف';
       } else caveButton.classList.add('hidden');
+      updateMissionProgress();
       if (drivingRover) {
         vehicleButton.classList.remove('hidden');
         vehicleButton.querySelector('small').textContent = 'ترجل';
@@ -1760,6 +1774,12 @@
 
     function recenterCamera() {
       if (!player) return;
+      if (caveMode) {
+        cameraYawTarget = 0;
+        cameraPitchTarget = -0.08;
+        cameraDistanceTarget = 18;
+        return;
+      }
       const frame = surfaceFrame(surfaceNormal);
       const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(player.quaternion).normalize();
       cameraYawTarget = Math.atan2(facing.dot(frame.east), facing.dot(frame.north));
@@ -2005,6 +2025,9 @@
         cameraDistance = cameraDistanceTarget = 18;
         if (moonRig) moonRig.visible = true;
         if (cloudMesh) cloudMesh.visible = true;
+        if (sky) sky.visible = true;
+        if (sunSprite) sunSprite.visible = true;
+        if (weatherMesh) weatherMesh.visible = true;
         scene.fog = new THREE.Fog(activePlanet.biome.fog, 260, 4300);
         cameraTouches.clear(); cameraPointer = null; pinchStartDistance = 0;
         smoothedMove.x = smoothedMove.y = 0;
