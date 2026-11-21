@@ -89,6 +89,7 @@
     #mine { border-color:rgba(243,201,119,.65); color:#f4d58e; }
     #cave { border-color:rgba(177,156,215,.66); color:#dfd0ff; }
     #vehicle { border-color:rgba(112,216,232,.6); color:#a8edf2; }
+    #ship { border-color:rgba(143,214,255,.72); color:#bfe8ff; }
     #start-screen { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; padding: 22px; background: radial-gradient(ellipse at 50% 35%, rgba(13,49,66,.4), rgba(2,9,16,.78)); }
     .start-card { width: min(430px, 100%); padding: 27px; border-radius: 23px; text-align: center; }
     .start-orb { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; font-size: 35px; color: #a3eff4; background: radial-gradient(circle at 35% 30%, #a4ebdf, #287d8c 55%, #102b43 78%); box-shadow: 0 0 45px rgba(79,194,211,.23); }
@@ -134,9 +135,9 @@
     <div id="status" class="glass">استكشف الساحل والسهول</div>
     <div id="inventory" class="glass">بلورات: <strong id="mineral-count">0</strong> · خام: <strong id="ore-count">0</strong></div>
     <div id="mission" class="glass">مهمة الاستكشاف: اجمع 5 بلورات</div>
-    <div id="survival" class="glass"><span>O₂</span><span id="oxygen-track"><i id="oxygen-fill"></i></span><strong id="oxygen-value">100%</strong></div>
+    <div id="survival" class="glass"><span>O₂</span><span id="oxygen-track"><i id="oxygen-fill"></i></span><strong id="oxygen-value">100%</strong><span>وقود</span><strong id="fuel-value">100%</strong></div>
     <div id="resource-hint" aria-live="polite"></div>
-    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز<br>اسحب بالفأرة لتدوير الكاميرا · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة</div>
+    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز<br>اسحب بالفأرة لتدوير الكاميرا · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة · <b>B</b> مكوك</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
     <div id="actions">
       <button class="action" id="scan" aria-label="البحث عن المعادن" title="تحديد أقرب بلورة"><span>⌕</span><small>بحث</small></button>
@@ -144,6 +145,7 @@
       <button class="action hidden" id="mine" aria-label="تعدين الخام"><span>⚒</span><small>تعدين</small></button>
       <button class="action hidden" id="cave" aria-label="دخول الكهف أو الخروج منه"><span>⌂</span><small>كهف</small></button>
       <button class="action hidden" id="vehicle" aria-label="قيادة المركبة أو الترجل"><span>▣</span><small>قيادة</small></button>
+      <button class="action hidden" id="ship" aria-label="قيادة المكوك والإقلاع والهبوط"><span>🚀</span><small>مكوك</small></button>
       <button class="action" id="camera-reset" aria-label="إعادة الكاميرا خلف الشخصية" title="إعادة الكاميرا"><span>↻</span><small>كاميرا</small></button>
       <button class="action" id="sprint" aria-label="الركض" title="اضغط باستمرار للركض"><span>»</span><small>ركض</small></button>
       <button class="action" id="jump" aria-label="قفز">↑<small>قفز</small></button>
@@ -155,7 +157,7 @@
         <h1>مرحباً أيها المستكشف</h1>
         <p>تجوّل في قارات شاسعة، وتسلق سلاسل جبلية وهضاباً صخرية، واعبر الوديان والسواحل تحت غيوم وطقس يتغير من كوكب إلى آخر. امسح البلورات واجمع العينات وأكمل مهمة الاستكشاف.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
-        <span class="note">اللعبة أفقية. العصا اليسرى للحركة، واسحب في النصف الأيمن لتدوير الكاميرا؛ اسحب للأعلى للنظر إلى السماء. زر التعدين يظهر قرب الصخور المعدنية، وزر الكهف عند المدخل، وزر العربة قرب المركبة. اجمع البلورات واستخرج الخام واستكشف الكهف، وراقب الأكسجين.</span>
+        <span class="note">اللعبة أفقية. العصا اليسرى للحركة، واسحب في النصف الأيمن لتدوير الكاميرا؛ اسحب للأعلى للنظر إلى السماء. زر التعدين يظهر قرب الصخور المعدنية، وزر الكهف عند المدخل، وزرا العربة والمكوك قربهما. اصعد المكوك ثم أقلع، واستخدم الزر نفسه لبدء الهبوط الآلي. راقب الأكسجين والوقود.</span>
       </div>
     </section>
     <section id="planet-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="planet-modal-title">
@@ -414,6 +416,8 @@
     let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null, weatherMesh = null;
     let oreMesh = null, oreNodes = [], oresCollected = 0, caveRoot = null, caveNormal = null, caveMode = false;
     let roverRoot = null, roverNormal = null, drivingRover = false, oxygen = 100, oxygenToastClock = 0;
+    let shipRoot = null, shipNormal = null, shipMode = false, shipAirborne = false, shipCanExit = false, shipFuel = 100, fuelWarning = false;
+    let mineSwingTimer = 0;
     let moonRig = null;
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
@@ -443,6 +447,8 @@
     const mineButton = document.getElementById('mine');
     const caveButton = document.getElementById('cave');
     const vehicleButton = document.getElementById('vehicle');
+    const shipButton = document.getElementById('ship');
+    const fuelValue = document.getElementById('fuel-value');
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
     const jumpButton = document.getElementById('jump');
@@ -644,7 +650,19 @@
         });
       }
       if (roverRoot) { scene.remove(roverRoot); roverRoot = null; }
-      caveRoot = null; caveNormal = null; roverNormal = null; caveMode = false; drivingRover = false;
+      if (shipRoot) {
+        scene.remove(shipRoot);
+        shipRoot.traverse(node => {
+          if (node.geometry) node.geometry.dispose();
+          if (node.material) {
+            if (Array.isArray(node.material)) node.material.forEach(m => m.dispose());
+            else node.material.dispose();
+          }
+        });
+        shipRoot = null;
+      }
+      caveRoot = null; caveNormal = null; roverNormal = null; shipNormal = null;
+      caveMode = false; drivingRover = false; shipMode = false; shipAirborne = false; shipCanExit = false;
       oreMesh = null; oreNodes = [];
       planetSurface = oceanMesh = atmosphereMesh = mineralMesh = null;
       terrainVertexData = null; terrainGridWidth = terrainGridHeight = 0;
@@ -1182,7 +1200,7 @@
       const behind = forward.clone().negate();
       roverNormal = surfaceNormal.clone().multiplyScalar(Math.cos(10 / PLANET_RADIUS))
         .addScaledVector(behind, Math.sin(10 / PLANET_RADIUS)).normalize();
-      const roverRight = new THREE.Vector3().crossVectors(roverNormal, behind).normalize();
+      const roverRight = new THREE.Vector3().crossVectors(roverNormal, forward).normalize();
       const roverForward = new THREE.Vector3().crossVectors(roverRight, roverNormal).normalize();
       roverRoot = new THREE.Group();
       const bodyMat = new THREE.MeshStandardMaterial({ color: 0x647984, metalness: 0.55, roughness: 0.45 });
@@ -1205,6 +1223,7 @@
       antenna.position.set(1.5, 4.0, -1.8); roverRoot.add(antenna);
       roverRoot.position.copy(surfacePoint(roverNormal, 0.6));
       roverRoot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(roverRight, roverNormal, roverForward));
+      roverRoot.traverse(node => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
       scene.add(roverRoot);
       roverRoot.visible = true;
     }
@@ -1219,6 +1238,10 @@
         const behind = forward.clone().negate();
         roverNormal = surfaceNormal.clone().multiplyScalar(Math.cos(7 / PLANET_RADIUS))
           .addScaledVector(behind, Math.sin(7 / PLANET_RADIUS)).normalize();
+        roverRoot.position.copy(surfacePoint(roverNormal, 0.6));
+        const roverRight = new THREE.Vector3().crossVectors(roverNormal, forward).normalize();
+        const roverForward = new THREE.Vector3().crossVectors(roverRight, roverNormal).normalize();
+        roverRoot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(roverRight, roverNormal, roverForward));
         showToast('ترجلت من العربة');
         vehicleButton.querySelector('small').textContent = 'قيادة';
         return;
@@ -1231,6 +1254,89 @@
       roverRoot.visible = true;
       vehicleButton.querySelector('small').textContent = 'ترجل';
       showToast('أنت تقود العربة — العصا للحركة والركض للتسارع');
+    }
+
+    function createShip() {
+      if (shipRoot) scene.remove(shipRoot);
+      const frame = surfaceFrame(surfaceNormal);
+      const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
+      shipNormal = surfaceNormal.clone().multiplyScalar(Math.cos(28 / PLANET_RADIUS))
+        .addScaledVector(forward, Math.sin(28 / PLANET_RADIUS)).normalize();
+      const right = new THREE.Vector3().crossVectors(shipNormal, forward).normalize();
+      const shipForward = new THREE.Vector3().crossVectors(right, shipNormal).normalize();
+      shipRoot = new THREE.Group();
+      const hull = new THREE.MeshStandardMaterial({ color: 0xd2dce0, metalness: 0.62, roughness: 0.34 });
+      const dark = new THREE.MeshStandardMaterial({ color: 0x273945, metalness: 0.4, roughness: 0.52 });
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0x3c91a7, metalness: 0.62, roughness: 0.16, emissive: 0x0a2938, emissiveIntensity: 0.5 });
+      const engineMat = new THREE.MeshStandardMaterial({ color: 0xffad5b, emissive: 0xff5a18, emissiveIntensity: 2.0 });
+      const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(2.35, 2.7, 8.5, 14), hull);
+      fuselage.position.y = 5.1; shipRoot.add(fuselage);
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(2.35, 3.8, 14), hull);
+      nose.position.y = 11.25; shipRoot.add(nose);
+      const cockpit = new THREE.Mesh(new THREE.SphereGeometry(1.55, 16, 10), glassMat);
+      cockpit.scale.set(1.0, 0.68, 0.8); cockpit.position.set(0, 7.3, 1.8); shipRoot.add(cockpit);
+      for (let i = 0; i < 4; i++) {
+        const angle = i * Math.PI / 2 + Math.PI / 4;
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.48, 2.8, 3.1), dark);
+        fin.position.set(Math.cos(angle) * 2.6, 3.3, Math.sin(angle) * 2.6);
+        fin.rotation.y = -angle; shipRoot.add(fin);
+      }
+      for (let i = 0; i < 3; i++) {
+        const angle = i * Math.PI * 2 / 3;
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 2.7, 7), dark);
+        leg.position.set(Math.cos(angle) * 2.3, 1.0, Math.sin(angle) * 2.3);
+        leg.rotation.z = -Math.cos(angle) * 0.42;
+        leg.rotation.x = Math.sin(angle) * 0.42;
+        shipRoot.add(leg);
+        const foot = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.22, 1.0), dark);
+        foot.position.set(Math.cos(angle) * 3.1, 0.12, Math.sin(angle) * 3.1);
+        shipRoot.add(foot);
+      }
+      const engineGlow = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.35, 1.1, 12), engineMat);
+      engineGlow.position.y = -0.1; shipRoot.add(engineGlow);
+      shipRoot.position.copy(surfacePoint(shipNormal, 0.2));
+      shipRoot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, shipNormal, shipForward));
+      shipRoot.traverse(node => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
+      scene.add(shipRoot);
+      shipMode = false; shipAirborne = false; shipCanExit = false; shipFuel = 100; fuelWarning = false;
+    }
+
+    function shipAction() {
+      if (!shipMode) {
+        if (!shipRoot || !shipNormal) return;
+        const distance = Math.acos(clamp(surfaceNormal.dot(shipNormal), -1, 1)) * PLANET_RADIUS;
+        if (distance > 36) { showToast('اقترب من المكوك أولاً'); return; }
+        shipMode = true; shipAirborne = false; shipCanExit = false;
+        player.visible = false;
+        if (roverRoot) roverRoot.visible = false;
+        shipRoot.visible = true;
+        shipButton.querySelector('small').textContent = 'إقلاع';
+        showToast('تم الصعود إلى المكوك — اضغط إقلاع');
+        return;
+      }
+      if (shipCanExit && onGround) {
+        shipMode = false; shipAirborne = false; shipCanExit = false;
+        player.visible = true;
+        shipNormal = surfaceNormal.clone();
+        shipRoot.position.copy(surfacePoint(surfaceNormal, 0.2));
+        shipRoot.quaternion.copy(player.quaternion);
+        if (roverRoot && !drivingRover) roverRoot.visible = true;
+        shipButton.querySelector('small').textContent = 'مكوك';
+        showToast('ترجلت من المكوك');
+        return;
+      }
+      if (!shipAirborne) {
+        if (shipFuel < 8) { showToast('وقود المكوك غير كافٍ للإقلاع'); return; }
+        verticalVelocity = 155 * Math.sqrt(activePlanet.gravityFactor);
+        verticalOffset = 0;
+        onGround = false;
+        shipAirborne = true;
+        shipButton.querySelector('small').textContent = 'هبوط';
+        showToast('إقلاع! وجّه المكوك بالعصا');
+      } else {
+        verticalVelocity = -38;
+        showToast('بدأ الهبوط الآلي');
+      }
     }
 
     function updateInteractables() {
@@ -1252,6 +1358,14 @@
         vehicleButton.classList.toggle('hidden', distance > 24);
         vehicleButton.querySelector('small').textContent = 'قيادة';
       } else vehicleButton.classList.add('hidden');
+      if (shipMode) {
+        shipButton.classList.remove('hidden');
+        shipButton.querySelector('small').textContent = shipCanExit && onGround ? 'ترجل' : (shipAirborne ? 'هبوط' : 'إقلاع');
+      } else if (shipNormal) {
+        const distance = Math.acos(clamp(surfaceNormal.dot(shipNormal), -1, 1)) * PLANET_RADIUS;
+        shipButton.classList.toggle('hidden', distance > 36);
+        shipButton.querySelector('small').textContent = 'مكوك';
+      } else shipButton.classList.add('hidden');
     }
 
     function updateSurvival(dt) {
@@ -1260,6 +1374,18 @@
       oxygen = clamp(oxygen - drain * dt + ((!caveMode && !lowAir) ? 5.5 * dt : 0), 0, 100);
       oxygenFill.style.width = oxygen.toFixed(1) + '%';
       oxygenValue.textContent = Math.round(oxygen) + '%';
+      if (shipAirborne) {
+        shipFuel = clamp(shipFuel - dt * 1.15, 0, 100);
+        if (shipFuel <= 0 && !fuelWarning) {
+          fuelWarning = true;
+          verticalVelocity = -38;
+          showToast('نفد الوقود — هبوط اضطراري');
+        }
+      } else if (!shipMode) {
+        shipFuel = clamp(shipFuel + dt * 2.2, 0, 100);
+        if (shipFuel > 15) fuelWarning = false;
+      }
+      fuelValue.textContent = Math.round(shipFuel) + '%';
       if (oxygen <= 0) {
         oxygenToastClock += dt;
         if (oxygenToastClock > 7) {
@@ -1404,6 +1530,7 @@
       applyPlanetEnvironment();
       createAstronaut();
       createRover();
+      createShip();
       camera.position.set(player.position.x + 7, player.position.y + 8, player.position.z + 12);
       updateCamera(1);
       window.addEventListener('resize', onResize, { passive: true });
@@ -1433,6 +1560,7 @@
         if (e.key.toLowerCase() === 'g' && running) mineNearbyOre();
         if (e.key.toLowerCase() === 'c' && running) toggleCave();
         if (e.key.toLowerCase() === 'v' && running) toggleVehicle();
+        if (e.key.toLowerCase() === 'b' && running) shipAction();
       }, { passive: false });
       window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
       window.addEventListener('blur', () => {
@@ -1522,6 +1650,7 @@
       mineButton.addEventListener('pointerdown', e => { e.preventDefault(); mineNearbyOre(); });
       caveButton.addEventListener('pointerdown', e => { e.preventDefault(); toggleCave(); });
       vehicleButton.addEventListener('pointerdown', e => { e.preventDefault(); toggleVehicle(); });
+      shipButton.addEventListener('pointerdown', e => { e.preventDefault(); shipAction(); });
       sprintButton.addEventListener('pointerdown', e => {
         e.preventDefault(); sprintHeld = true; sprintButton.classList.add('held');
         sprintButton.setPointerCapture(e.pointerId);
@@ -1564,6 +1693,7 @@
     }
 
     function jump() {
+      if (shipMode) { shipAction(); return; }
       if (!onGround) return;
       verticalVelocity = 10.2 * Math.sqrt(activePlanet.gravityFactor);
       onGround = false;
@@ -1596,7 +1726,7 @@
       const right = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
       const direction = forward.clone().multiplyScalar(smoothedMove.y).addScaledVector(right, smoothedMove.x);
       const sprinting = sprintHeld || keys.has('shift');
-      const speed = (drivingRover ? 34 : PLAYER_SPEED) * (sprinting ? 1.9 : 1);
+      const speed = (shipMode ? 48 : (drivingRover ? 34 : PLAYER_SPEED)) * (sprinting ? 1.9 : 1);
       const distance = speed * moveAmount * dt * (onGround ? 1 : 0.72);
       if (moveAmount > 0.025 && distance > 0) {
         direction.normalize();
@@ -1608,12 +1738,22 @@
       }
       verticalVelocity -= BASE_GRAVITY * activePlanet.gravityFactor * dt;
       verticalOffset += verticalVelocity * dt;
-      if (verticalOffset <= 0) { verticalOffset = 0; verticalVelocity = 0; onGround = true; }
-      else onGround = false;
+      if (verticalOffset <= 0) {
+        verticalOffset = 0; verticalVelocity = 0; onGround = true;
+        if (shipMode && shipAirborne) {
+          shipAirborne = false; shipCanExit = true;
+          shipButton.querySelector('small').textContent = 'ترجل';
+          showToast('هبط المكوك بأمان');
+        }
+      } else onGround = false;
       player.position.copy(surfacePoint(surfaceNormal, verticalOffset));
       if (drivingRover && roverRoot) {
         roverRoot.position.copy(player.position);
         roverRoot.quaternion.copy(player.quaternion);
+      }
+      if (shipMode && shipRoot) {
+        shipRoot.position.copy(player.position);
+        shipRoot.quaternion.copy(player.quaternion);
       }
       const walk = moveAmount > .035 && onGround && !drivingRover ? Math.sin(elapsed * (sprinting ? 14 : 10.5)) * .58 * moveAmount : 0;
       leftLeg.rotation.x = walk; rightLeg.rotation.x = -walk;
@@ -1746,8 +1886,9 @@
         onGround = true;
         player.position.copy(surfacePoint(surfaceNormal));
         player.visible = true;
-        caveMode = false; drivingRover = false;
+        caveMode = false; drivingRover = false; shipMode = false; shipAirborne = false; shipCanExit = false;
         createRover();
+        createShip();
         cameraYaw = cameraYawTarget = spawnYaw;
         cameraPitch = cameraPitchTarget = -0.22;
         cameraDistance = cameraDistanceTarget = 18;
