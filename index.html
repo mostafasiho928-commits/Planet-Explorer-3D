@@ -367,6 +367,17 @@
 
         let score = activePlanet.hasOcean ? -Math.abs(height - activePlanet.seaLevel - 4) * 0.08 : height * 0.12;
         let coastBearing = 0.25;
+        let nearbyHighland = height;
+        const nearbyFrame = surfaceFrame(candidate);
+        for (let d = 0; d < 8; d++) {
+          const bearing = d * Math.PI / 4;
+          const tangent = nearbyFrame.north.clone().multiplyScalar(Math.cos(bearing))
+            .addScaledVector(nearbyFrame.east, Math.sin(bearing));
+          const nearby = candidate.clone().multiplyScalar(Math.cos(0.105))
+            .addScaledVector(tangent, Math.sin(0.105)).normalize();
+          nearbyHighland = Math.max(nearbyHighland, terrainHeight(nearby));
+        }
+        score += clamp(nearbyHighland - height, 0, 900) * 0.012;
         if (activePlanet.hasOcean) {
           const frame = surfaceFrame(candidate);
           const step = 0.015;
@@ -414,7 +425,7 @@
     let terrainVertexData = null, terrainGridWidth = 0, terrainGridHeight = 0;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
     let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null, weatherMesh = null;
-    let oreMesh = null, oreNodes = [], oresCollected = 0, caveRoot = null, caveNormal = null, caveMode = false;
+    let oreMesh = null, oreNodes = [], oresCollected = 0, caveRoot = null, caveNormal = null, caveMode = false, missionCompleted = false;
     let roverRoot = null, roverNormal = null, drivingRover = false, oxygen = 100, oxygenToastClock = 0;
     let shipRoot = null, shipNormal = null, shipMode = false, shipAirborne = false, shipCanExit = false, shipFuel = 100, fuelWarning = false;
     let mineSwingTimer = 0;
@@ -1051,6 +1062,7 @@
       resourceHint.classList.remove('show');
       mineralsCollected = 0;
       oresCollected = 0;
+      missionCompleted = false;
       mineralCount.textContent = '0';
       oreCountLabel.textContent = '0';
       oxygen = 100;
@@ -1128,7 +1140,7 @@
       const distance = Math.acos(clamp(surfaceNormal.dot(trackedMineral.normal), -1, 1)) * PLANET_RADIUS;
       if (mineralMarker) {
         mineralMarker.position.copy(trackedMineral.normal).multiplyScalar(
-          PLANET_RADIUS + terrainHeight(trackedMineral.normal) + 18 + Math.sin(elapsed * 2.2) * 1.1
+          PLANET_RADIUS + surfaceHeightAt(trackedMineral.normal) + 18 + Math.sin(elapsed * 2.2) * 1.1
         );
         mineralMarker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), trackedMineral.normal);
         mineralMarker.visible = true;
@@ -1159,7 +1171,10 @@
     }
 
     function updateMissionProgress() {
-      if (mineralsCollected >= 5 && oresCollected >= 3 && caveMode) {
+      if (missionCompleted) {
+        missionLabel.textContent = 'اكتملت المهمة الكبرى — مستكشف محترف';
+      } else if (mineralsCollected >= 5 && oresCollected >= 3 && caveMode) {
+        missionCompleted = true;
         missionLabel.textContent = 'اكتملت المهمة الكبرى — مستكشف محترف';
         showToast('اكتملت مهمة الكوكب الكبرى!');
       } else if (mineralsCollected >= 5 && oresCollected >= 3) {
@@ -1230,6 +1245,7 @@
     }
 
     function toggleVehicle() {
+      if (shipMode) { showToast('اخرج من المكوك أولاً'); return; }
       if (drivingRover) {
         drivingRover = false;
         player.visible = true;
@@ -1303,6 +1319,7 @@
     }
 
     function shipAction() {
+      if (drivingRover) { showToast('ترجل من العربة قبل صعود المكوك'); return; }
       if (!shipMode) {
         if (!shipRoot || !shipNormal) return;
         const distance = Math.acos(clamp(surfaceNormal.dot(shipNormal), -1, 1)) * PLANET_RADIUS;
@@ -1568,6 +1585,7 @@
     function bindControls() {
       window.addEventListener('keydown', e => {
         if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+        if (e.repeat) return;
         keys.add(e.key.toLowerCase());
         if (e.code === 'Space' && running) jump();
         if (e.key.toLowerCase() === 'e' && running) scanForMineral();
@@ -1777,9 +1795,9 @@
         leftLeg.rotation.x = .28; rightLeg.rotation.x = -.18;
         leftArm.rotation.x = -.35; rightArm.rotation.x = -.35;
       }
-      status.textContent = caveMode ? 'داخل الكهف · راقب الأكسجين' : (drivingRover ? 'تقود العربة الاستكشافية' :
+      status.textContent = caveMode ? 'داخل الكهف · راقب الأكسجين' : (shipMode ? (shipAirborne ? 'المكوك في الجو · راقب الوقود' : 'داخل المكوك الاستكشافي') : (drivingRover ? 'تقود العربة الاستكشافية' :
         (!onGround ? 'تقفز فوق السطح…' :
-        (moveAmount > .04 ? (sprinting ? 'تركض لاستكشاف العالم…' : 'تستكشف سطح الكوكب…') : 'استكشف العالم الكروي من حولك')));
+        (moveAmount > .04 ? (sprinting ? 'تركض لاستكشاف العالم…' : 'تستكشف سطح الكوكب…') : 'استكشف العالم الكروي من حولك'))));
     }
 
     function updateCamera(dt) {
