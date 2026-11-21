@@ -223,7 +223,7 @@
       const dayHours = Math.round(8 + random() * 210);
       const offset = (random() - 0.5) * 5;
       const hasOcean = random() > (biome.climate === "جاف وحار" ? 0.38 : 0.22);
-      const seaLevel = 1.2 + random() * 2.4;
+      const seaLevel = 4.5 + random() * 3.0;
       const name = NAME_A[Math.floor(random() * NAME_A.length)] + NAME_B[Math.floor(random() * NAME_B.length)];
       return { id, seed, name, biome, temperature, gravityFactor, terrainScale, relief, roughness, ridgeStrength, atmosphere, dayHours, offset, hasOcean, seaLevel };
     }
@@ -303,11 +303,11 @@
         if (activePlanet.hasOcean && height <= activePlanet.seaLevel + 1.4) continue;
 
         let score = activePlanet.hasOcean ? -Math.abs(height - activePlanet.seaLevel - 4) * 0.08 : height * 0.12;
+        let coastBearing = 0.25;
         if (activePlanet.hasOcean) {
           const frame = surfaceFrame(candidate);
           const step = 0.19;
           let wetNeighbors = 0;
-          let coastBearing = 0.25;
           for (let d = 0; d < 8; d++) {
             const bearing = d * Math.PI / 4;
             const tangent = frame.north.clone().multiplyScalar(Math.cos(bearing))
@@ -501,6 +501,7 @@
       sunLight.shadow.camera.bottom = -62;
       sunLight.shadow.camera.near = 1;
       sunLight.shadow.camera.far = 170;
+      sunLight.shadow.camera.updateProjectionMatrix();
       sunLight.shadow.bias = -0.00025;
       sunLight.shadow.normalBias = 0.025;
       sunLight.shadow.radius = 3;
