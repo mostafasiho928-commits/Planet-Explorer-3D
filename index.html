@@ -75,6 +75,7 @@
     #actions { position: absolute; z-index: 8; right: max(22px, env(safe-area-inset-right)); bottom: max(25px, env(safe-area-inset-bottom)); display: none; gap: 12px; align-items: flex-end; direction: ltr; }
     .action { width: 58px; height: 58px; border-radius: 50%; border: 1px solid rgba(230,250,255,.32); background: rgba(7,22,34,.72); color: #effbff; font-size: 23px; box-shadow: 0 8px 18px rgba(0,0,0,.22); backdrop-filter: blur(9px); touch-action: none; }
     .action:active { transform: scale(.94); background: rgba(67,149,169,.72); }
+    .action small { display: block; margin-top: -3px; font: 700 9px Tahoma, Arial, sans-serif; line-height: 1; }
     #jump { border-color: rgba(112,216,232,.55); }
     #scan { border-color: rgba(243,201,119,.55); color: #ffe6a9; font-size: 20px; }
     #start-screen { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; padding: 22px; background: radial-gradient(ellipse at 50% 35%, rgba(13,49,66,.4), rgba(2,9,16,.78)); }
@@ -125,7 +126,7 @@
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
     <div id="actions">
       <button class="action" id="scan" aria-label="البحث عن المعادن" title="تحديد أقرب بلورة">⌕</button>
-      <button class="action hidden" id="collect" aria-label="جمع البلورة" title="جمع البلورة">✦</button>
+      <button class="action hidden" id="collect" aria-label="جمع البلورة" title="جمع البلورة"><span>✦</span><small>جمع</small></button>
       <button class="action" id="jump" aria-label="قفز">↑</button>
     </div>
     <div id="toast"></div>
@@ -319,8 +320,7 @@
               if (wetNeighbors === 1) coastBearing = bearing;
             }
           }
-          score += wetNeighbors * 2.8;
-          if (wetNeighbors > 0) score += 0.2;
+          score += (6 - Math.abs(wetNeighbors - 3)) * 2.0;
         }
         if (score > bestScore) {
           bestScore = score;
@@ -346,7 +346,7 @@
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh, oceanTexture = null;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
-    let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null;
+    let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null;
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraPitch = 0.38, cameraDistance = 10.5;
@@ -539,6 +539,7 @@
       mineralNodes = [];
       trackedMineral = null;
       cloudMesh = null;
+      mineralMarker = null;
       collectButton.classList.add("hidden");
       resourceHint.classList.remove("show");
 
@@ -808,6 +809,13 @@
       }
       cloudMesh = clouds;
       mineralMesh = crystals;
+      mineralMarker = new THREE.Mesh(
+        new THREE.ConeGeometry(0.42, 5.2, 7),
+        new THREE.MeshBasicMaterial({ color: 0xffe6a2, transparent: true, opacity: 0.84, depthWrite: false })
+      );
+      mineralMarker.visible = false;
+      scene.add(mineralMarker);
+      resourceMeshes.push(mineralMarker);
       trackedMineral = null;
       collectButton.classList.add('hidden');
       resourceHint.classList.remove('show');
@@ -839,10 +847,18 @@
     function updateResourceHint(force = false) {
       if (!trackedMineral || trackedMineral.collected || !running) {
         collectButton.classList.add('hidden');
+        if (mineralMarker) mineralMarker.visible = false;
         if (!trackedMineral) resourceHint.classList.remove('show');
         return;
       }
       const distance = Math.acos(clamp(surfaceNormal.dot(trackedMineral.normal), -1, 1)) * PLANET_RADIUS;
+      if (mineralMarker) {
+        mineralMarker.position.copy(trackedMineral.normal).multiplyScalar(
+          PLANET_RADIUS + terrainHeight(trackedMineral.normal) + 7.2 + Math.sin(elapsed * 2.2) * 0.45
+        );
+        mineralMarker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), trackedMineral.normal);
+        mineralMarker.visible = true;
+      }
       if (distance <= 10.5) {
         resourceHint.textContent = 'بلورة أمامك — اقترب واضغط «جمع»';
         collectButton.classList.remove('hidden');
