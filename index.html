@@ -64,6 +64,10 @@
     #status { position: absolute; z-index: 5; top: 76px; left: 50%; transform: translateX(-50%); padding: 8px 13px; border-radius: 12px; color: #d8edf2; font-size: 11px; white-space: nowrap; pointer-events: none; }
     #inventory { position: absolute; z-index: 6; left: 50%; bottom: max(13px, env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 8px 13px; border-radius: 12px; color: var(--muted); font-size: 10px; white-space: nowrap; pointer-events: none; }
     #inventory strong { color: #f3d58c; font-size: 12px; margin-inline-start: 4px; }
+    #resource-hint { position: absolute; z-index: 7; left: 50%; top: 112px; transform: translateX(-50%); max-width: min(80vw, 390px); padding: 9px 14px; border-radius: 13px; color: #e8fbff; background: rgba(4,20,29,.82); border: 1px solid rgba(111,218,226,.24); font-size: 11px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; }
+    #resource-hint.show { opacity: 1; }
+    #collect { border-color: rgba(243,201,119,.72); color: #fff0c5; background: rgba(104,70,24,.82); }
+    .action.hidden { display: none !important; }
     #help { position: absolute; z-index: 5; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); padding: 9px 12px; border-radius: 13px; color: var(--muted); font-size: 10px; line-height: 1.8; pointer-events: none; }
     #help b { color: #e6f8fb; font-weight: 600; }
     #joystick { position: absolute; z-index: 8; left: max(24px, env(safe-area-inset-left)); bottom: max(25px, env(safe-area-inset-bottom)); width: 118px; height: 118px; border: 1px solid rgba(220,245,255,.25); border-radius: 50%; background: rgba(5,18,29,.32); box-shadow: inset 0 0 24px rgba(0,0,0,.16); display: none; touch-action: none; }
@@ -116,10 +120,12 @@
     </div>
     <div id="status" class="glass">استكشف التضاريس المحيطة بك</div>
     <div id="inventory" class="glass">بلورات جُمعت: <strong id="mineral-count">0</strong></div>
+    <div id="resource-hint" aria-live="polite"></div>
     <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Space</b> للقفز · <b>E</b> للمسح<br><b>اسحب</b> لتدوير الكاميرا</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
     <div id="actions">
-      <button class="action" id="scan" aria-label="مسح وجمع البلورات">⌕</button>
+      <button class="action" id="scan" aria-label="البحث عن المعادن" title="تحديد أقرب بلورة">⌕</button>
+      <button class="action hidden" id="collect" aria-label="جمع البلورة" title="جمع البلورة">✦</button>
       <button class="action" id="jump" aria-label="قفز">↑</button>
     </div>
     <div id="toast"></div>
@@ -332,6 +338,7 @@
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh, oceanTexture = null;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
+    let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null;
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
     let cameraYaw = 0.25, cameraPitch = 0.38, cameraDistance = 10.5;
@@ -346,6 +353,8 @@
     const startScreen = document.getElementById('start-screen');
     const startButton = document.getElementById('start-button');
     const scanButton = document.getElementById('scan');
+    const collectButton = document.getElementById('collect');
+    const resourceHint = document.getElementById('resource-hint');
     const mineralCount = document.getElementById('mineral-count');
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
