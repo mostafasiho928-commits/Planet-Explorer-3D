@@ -121,7 +121,7 @@
     <div id="status" class="glass">استكشف التضاريس المحيطة بك</div>
     <div id="inventory" class="glass">بلورات جُمعت: <strong id="mineral-count">0</strong></div>
     <div id="resource-hint" aria-live="polite"></div>
-    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Space</b> للقفز · <b>E</b> للمسح<br><b>اسحب</b> لتدوير الكاميرا</div>
+    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Space</b> للقفز<br><b>E</b> للبحث عن المعادن · <b>F</b> للجمع</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
     <div id="actions">
       <button class="action" id="scan" aria-label="البحث عن المعادن" title="تحديد أقرب بلورة">⌕</button>
@@ -528,6 +528,10 @@
       planetSurface = oceanMesh = atmosphereMesh = mineralMesh = null;
       resourceMeshes = [];
       mineralNodes = [];
+      trackedMineral = null;
+      cloudMesh = null;
+      collectButton.classList.add("hidden");
+      resourceHint.classList.remove("show");
 
       const geometry = new THREE.SphereGeometry(PLANET_RADIUS, PLANET_WIDTH_SEGMENTS, PLANET_HEIGHT_SEGMENTS);
       const positions = geometry.getAttribute('position');
@@ -800,6 +804,7 @@
       resourceHint.classList.remove('show');
       mineralsCollected = 0;
       mineralCount.textContent = '0';
+      trackedMineral = nearestMineral(145)?.node || null;
     }
 
     function nearestMineral(maxDistance = 140) {
@@ -939,7 +944,6 @@
 
       player = new THREE.Group();
       player.add(root);
-      surfaceNormal.copy(findSpawnNormal());
       verticalOffset = 0;
       player.position.copy(surfacePoint(surfaceNormal));
       astronaut = root;
@@ -979,6 +983,7 @@
       makeSky();
       startButton.textContent = "تهيئة سطح الكوكب...";
       await createPlanetSurface();
+      surfaceNormal.copy(findSpawnNormal());
       startButton.textContent = "إنشاء الحياة والموارد...";
       await createPlanetResources();
       applyPlanetEnvironment();
@@ -1008,6 +1013,7 @@
         keys.add(e.key.toLowerCase());
         if (e.code === 'Space' && running) jump();
         if (e.key.toLowerCase() === 'e' && running) scanForMineral();
+        if (e.key.toLowerCase() === 'f' && running) collectTrackedMineral();
       }, { passive: false });
       window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
       window.addEventListener('blur', () => keys.clear());
@@ -1053,6 +1059,7 @@
       joystick.addEventListener('pointercancel', endStick);
       jumpButton.addEventListener('pointerdown', e => { e.preventDefault(); if (running) jump(); });
       scanButton.addEventListener('pointerdown', e => { e.preventDefault(); scanForMineral(); });
+      collectButton.addEventListener('pointerdown', e => { e.preventDefault(); collectTrackedMineral(); });
     }
 
     function updateJoystick(e) {
@@ -1146,6 +1153,8 @@
       elapsed += dt;
       updatePlayer(dt);
       updateCamera(dt);
+      updateResourceHint();
+      if (cloudMesh) cloudMesh.rotation.y += dt * 0.00012;
       renderer.render(scene, camera);
     }
 
@@ -1183,8 +1192,8 @@
       status.textContent = 'جارٍ توليد العالم الجديد...';
       try {
         await createPlanetSurface();
-        await createPlanetResources();
         surfaceNormal.copy(findSpawnNormal());
+        await createPlanetResources();
         verticalOffset = 0;
         verticalVelocity = 0;
         onGround = true;
