@@ -112,7 +112,14 @@
     .note { display: block; margin-top: 13px; color: #718e99; font-size: 10px; line-height: 1.8; }
     #toast { position: absolute; z-index: 12; left: 50%; bottom: 22%; transform: translate(-50%, 10px); opacity: 0; transition: .25s ease; padding: 10px 15px; border-radius: 12px; color: white; background: rgba(5,20,30,.82); border: 1px solid var(--line); font-size: 12px; pointer-events: none; }
     #toast.show { opacity: 1; transform: translate(-50%, 0); }
-    @media (pointer: coarse) { #joystick, #actions { display: flex; } #help { display: none; } #status { top: 70px; } }
+    @media (pointer: coarse) {
+      #joystick, #actions { display: flex; }
+      #actions { max-width: calc(100vw - 155px); overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; padding: 0 0 3px; }
+      #actions::-webkit-scrollbar { display: none; }
+      #actions .action { flex: 0 0 auto; }
+      #help { display: none; }
+      #status { top: 70px; }
+    }
     @media (max-width: 620px) {
       #topbar { gap: 6px; }
       .brand { padding: 7px 9px; gap: 7px; }
@@ -123,7 +130,7 @@
       #planet-name { font-size: 10px; }
       #planet-subtitle { font-size: 8px; }
       #open-planet-map { padding: 7px 8px; font-size: 9px; }
-      #actions { gap: 8px; right: max(14px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); }
+      #actions { gap: 8px; right: max(14px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); max-width: calc(100vw - 145px); }
       .action { width: 52px; height: 52px; }
       #joystick { width: 116px; height: 116px; left: max(14px, env(safe-area-inset-left)); bottom: max(17px, env(safe-area-inset-bottom)); }
       #stick { width: 54px; height: 54px; margin: -27px 0 0 -27px; }
