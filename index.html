@@ -994,7 +994,7 @@
       surfaceNormal = new THREE.Vector3(0, 0, 1);
       const viewport = getGameViewport();
       scene = new THREE.Scene();
-      scene.fog = new THREE.Fog(activePlanet.biome.fog, 90, 285);
+      scene.fog = new THREE.Fog(activePlanet.biome.fog, 48, 210);
       camera = new THREE.PerspectiveCamera(62, viewport.width / viewport.height, .1, 900);
       renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOW_END_DEVICE ? 1.2 : (IS_TOUCH_DEVICE ? 1.5 : 1.8)));
@@ -1168,7 +1168,7 @@
       sunSprite.position.set(camera.position.x - 156, camera.position.y + 204, camera.position.z - 153);
       sunLight.target.position.copy(player.position);
       sunLight.position.set(player.position.x - 0.52 * 85, player.position.y + 0.68 * 85, player.position.z - 0.51 * 85);
-      if (oceanTexture) oceanTexture.offset.x = (oceanTexture.offset.x + dt * 0.0015) % 1;
+      if (oceanTexture) oceanTexture.offset.x = (oceanTexture.offset.x + dt * 0.006) % 1;
     }
 
     function animate(now) {
@@ -1180,7 +1180,7 @@
       updatePlayer(dt);
       updateCamera(dt);
       updateResourceHint();
-      if (cloudMesh) cloudMesh.rotation.y += dt * 0.00012;
+      if (cloudMesh) cloudMesh.rotation.y += dt * 0.00032;
       renderer.render(scene, camera);
     }
 
