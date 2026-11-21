@@ -1445,6 +1445,7 @@
 
     function toggleVehicle() {
       if (planeMode) { showToast('أوقف الطائرة وترجل منها أولاً'); return; }
+      if (planeMode) { showToast('أوقف الطائرة وترجل منها أولاً'); return; }
       if (shipMode) { showToast('اخرج من المكوك أولاً'); return; }
       if (drivingRover) {
         drivingRover = false;
@@ -1798,6 +1799,22 @@
         vehicleButton.classList.toggle('hidden', distance > 24);
         vehicleButton.querySelector('small').textContent = 'قيادة';
       } else vehicleButton.classList.add('hidden');
+      if (planeMode) {
+        planeButton.classList.remove('hidden');
+        planeButton.querySelector('small').textContent = planeLanded && planeSpeed < 28 ? 'ترجل' : 'هبوط';
+        descendButton.classList.remove('hidden');
+      } else if (planeNormal) {
+        const planeDistance = Math.acos(clamp(surfaceNormal.dot(planeNormal), -1, 1)) * PLANET_RADIUS;
+        planeButton.classList.toggle('hidden', planeDistance > 45);
+        planeButton.querySelector('small').textContent = 'طائرة';
+        descendButton.classList.add('hidden');
+      } else {
+        planeButton.classList.add('hidden');
+        descendButton.classList.add('hidden');
+      }
+      const nearbyThreat = enemyDrones.some(enemy => enemy.alive &&
+        Math.acos(clamp(surfaceNormal.dot(enemy.normal), -1, 1)) * PLANET_RADIUS < 750);
+      fireButton.classList.toggle('hidden', !nearbyThreat && !planeMode);
       if (shipMode) {
         shipButton.classList.remove('hidden');
         shipButton.querySelector('small').textContent = shipCanExit && onGround ? 'ترجل' : (shipAirborne ? 'هبوط' : 'إقلاع');
@@ -2023,10 +2040,18 @@
         if (e.key.toLowerCase() === 'c' && running) toggleCave();
         if (e.key.toLowerCase() === 'v' && running) toggleVehicle();
         if (e.key.toLowerCase() === 'b' && running) shipAction();
+        if (e.key.toLowerCase() === 'p' && running) planeAction();
+        if (e.key.toLowerCase() === 'x' && running) fireWeapon();
+        if (e.code === 'Space' && planeMode) planeClimbHeld = 1;
+        if (e.key === 'Control' && planeMode) planeClimbHeld = -1;
       }, { passive: false });
-      window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+      window.addEventListener('keyup', e => {
+        keys.delete(e.key.toLowerCase());
+        if (e.code === 'Space' && planeMode) planeClimbHeld = 0;
+        if (e.key === 'Control' && planeMode) planeClimbHeld = 0;
+      });
       window.addEventListener('blur', () => {
-        keys.clear(); sprintHeld = false; sprintButton.classList.remove('held');
+        keys.clear(); sprintHeld = false; planeClimbHeld = 0; sprintButton.classList.remove('held');
         cameraTouches.clear(); cameraPointer = null; joystickPointer = null;
         moveInput.x = moveInput.y = 0;
       });
@@ -2113,6 +2138,13 @@
       caveButton.addEventListener('pointerdown', e => { e.preventDefault(); toggleCave(); });
       vehicleButton.addEventListener('pointerdown', e => { e.preventDefault(); toggleVehicle(); });
       shipButton.addEventListener('pointerdown', e => { e.preventDefault(); shipAction(); });
+      planeButton.addEventListener('pointerdown', e => { e.preventDefault(); planeAction(); });
+      fireButton.addEventListener('pointerdown', e => { e.preventDefault(); fireWeapon(); });
+      descendButton.addEventListener('pointerdown', e => { e.preventDefault(); if (planeMode) planeClimbHeld = -1; });
+      descendButton.addEventListener('pointerup', () => { if (planeMode) planeClimbHeld = 0; });
+      descendButton.addEventListener('pointercancel', () => { if (planeMode) planeClimbHeld = 0; });
+      jumpButton.addEventListener('pointerup', () => { if (planeMode) planeClimbHeld = 0; });
+      jumpButton.addEventListener('pointercancel', () => { if (planeMode) planeClimbHeld = 0; });
       sprintButton.addEventListener('pointerdown', e => {
         e.preventDefault(); sprintHeld = true; sprintButton.classList.add('held');
         sprintButton.setPointerCapture(e.pointerId);
@@ -2161,6 +2193,7 @@
     }
 
     function jump() {
+      if (planeMode) { planeClimbHeld = 1; return; }
       if (shipMode) { shipAction(); return; }
       if (drivingRover || !onGround) return;
       verticalVelocity = 10.2 * Math.sqrt(activePlanet.gravityFactor);
@@ -2188,6 +2221,50 @@
       smoothedMove.x += (input.strafe - smoothedMove.x) * blend;
       smoothedMove.y += (input.forward - smoothedMove.y) * blend;
       const moveAmount = Math.min(1, Math.hypot(smoothedMove.x, smoothedMove.y));
+      if (planeMode && planeRoot) {
+        planeThrottle = clamp(planeThrottle + input.forward * dt * 0.52 +
+          ((sprintHeld || keys.has('shift')) ? dt * 0.34 : 0) -
+          (planeLandingRequested ? dt * 0.10 : (!input.forward && !sprintHeld ? dt * 0.045 : 0)), 0, 1);
+        if (input.strafe !== 0) cameraYawTarget += input.strafe * dt * 0.78;
+        const frame = surfaceFrame(surfaceNormal);
+        const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
+        const airSpeed = 12 + planeThrottle * 116;
+        const distance = airSpeed * dt;
+        const oldNormal = surfaceNormal.clone();
+        const angle = distance / PLANET_RADIUS;
+        surfaceNormal.copy(oldNormal).multiplyScalar(Math.cos(angle)).addScaledVector(forward, Math.sin(angle)).normalize();
+        if (!planeLanded) planeFlightDistance += distance;
+        const gravity = BASE_GRAVITY * activePlanet.gravityFactor;
+        const liftRatio = clamp((airSpeed - 32) / 76, 0, 1);
+        const lift = liftRatio * liftRatio * gravity * 1.55;
+        verticalVelocity += (lift - gravity + planeClimbHeld * 8.5 - (planeLandingRequested ? 5.5 : 0)) * dt;
+        verticalOffset = clamp(verticalOffset + verticalVelocity * dt, 0, 520);
+        if (verticalOffset <= 0.01) {
+          verticalOffset = 0;
+          if (verticalVelocity < 0) verticalVelocity = 0;
+          if (planeLandingRequested || airSpeed < 43) {
+            planeLanded = true;
+            planeLandingRequested = false;
+            if (planeFlightDistance >= 600) planeCertified = true;
+            if (planeCertified) { savePlanetProgress(); updateMissionProgress(); }
+          }
+        } else planeLanded = false;
+        if (airSpeed > 80 && verticalOffset > 1.2) planeLanded = false;
+        planeBank += (clamp(input.strafe, -1, 1) * 0.62 - planeBank) * (1 - Math.exp(-4.5 * dt));
+        const rightAxis = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
+        const correctedForward = new THREE.Vector3().crossVectors(rightAxis, surfaceNormal).normalize();
+        orientPlayer(correctedForward, 1);
+        player.position.copy(surfacePoint(surfaceNormal, verticalOffset));
+        planeRoot.position.copy(player.position).addScaledVector(surfaceNormal, 1.7);
+        planeRoot.quaternion.copy(player.quaternion);
+        planeRoot.rotateZ(-planeBank);
+        if (planeRoot.userData.propeller) planeRoot.userData.propeller.rotation.z += dt * (12 + airSpeed * 0.7);
+        planeSpeed = airSpeed;
+        status.textContent = planeLanded
+          ? 'الطائرة على الأرض · السرعة ' + Math.round(airSpeed) + ' كم/س'
+          : 'دورية جوية · السرعة ' + Math.round(airSpeed) + ' كم/س · الارتفاع ' + Math.round(verticalOffset) + 'م';
+        return;
+      }
       if (caveMode && caveRoot && caveLocalPosition) {
         const localForward = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
         const localRight = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
@@ -2378,6 +2455,7 @@
       updateInteractables();
       updateSurvival(dt);
       updateWeather(dt);
+      updateCombat(dt);
       if (moonRig) moonRig.rotation.z += dt * 0.0008;
       renderer.render(scene, camera);
     }
