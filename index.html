@@ -118,7 +118,7 @@
         <button id="open-planet-map" type="button">اختيار كوكب</button>
       </div>
     </div>
-    <div id="status" class="glass">استكشف التضاريس المحيطة بك</div>
+    <div id="status" class="glass">استكشف الساحل والسهول</div>
     <div id="inventory" class="glass">بلورات جُمعت: <strong id="mineral-count">0</strong></div>
     <div id="resource-hint" aria-live="polite"></div>
     <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Space</b> للقفز<br><b>E</b> للبحث عن المعادن · <b>F</b> للجمع</div>
@@ -133,7 +133,7 @@
       <div class="start-card glass">
         <div class="start-orb">✦</div>
         <h1>مرحباً أيها المستكشف</h1>
-        <p>استكشف عالماً كروياً حقيقياً بتضاريس إجرائية ومحيطات وغلاف جوي. هناك 150 مليون كوكب لكل منها بيئته وجاذبيته ومناخه، ويمكنك العودة إلى أي كوكب باستخدام رقمه.</p>
+        <p>اكتشف قارات وسواحل ومحيطات واسعة، وغابات وصخوراً وبلورات مخفية. لكل كوكب طبيعته وجاذبيته ومناخه، ويمكنك العودة إليه برقم فريد.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
         <span class="note">تخطيط اللعبة أفقي. لقفل اتجاه الجهاز تلقائياً، افتح النسخة المستضافة وثبّتها كتطبيق من Chrome.<br>تحتاج اللعبة إلى اتصال بالإنترنت لتحميل Three.js.</span>
       </div>
@@ -278,7 +278,7 @@
       const surfaceDetail = (detail - 0.5) * 2.1 * p.roughness;
       return continentalMass + rollingLand + mountainBelts + surfaceDetail - 0.7 + p.offset;
     }
-    let WORLD_UP, WORLD_X, surfaceNormal, verticalOffset = 0;
+    let WORLD_UP, WORLD_X, surfaceNormal, verticalOffset = 0, spawnYaw = 0.25;
     function surfaceFrame(normal) {
       const reference = Math.abs(normal.y) < 0.94 ? WORLD_UP : WORLD_X;
       const east = new THREE.Vector3().crossVectors(reference, normal).normalize();
@@ -291,6 +291,7 @@
     function findSpawnNormal() {
       let best = new THREE.Vector3(0, 0, 1);
       let bestScore = -Infinity;
+      let bestFacing = 0.25;
       const samples = 560;
       const goldenAngle = Math.PI * (3 - Math.sqrt(5));
       for (let i = 0; i < samples; i++) {
@@ -306,27 +307,34 @@
           const frame = surfaceFrame(candidate);
           const step = 0.19;
           let wetNeighbors = 0;
+          let coastBearing = 0.25;
           for (let d = 0; d < 8; d++) {
             const bearing = d * Math.PI / 4;
             const tangent = frame.north.clone().multiplyScalar(Math.cos(bearing))
               .addScaledVector(frame.east, Math.sin(bearing));
             const nearby = candidate.clone().multiplyScalar(Math.cos(step))
               .addScaledVector(tangent, Math.sin(step)).normalize();
-            if (terrainHeight(nearby) < activePlanet.seaLevel + 0.35) wetNeighbors++;
+            if (terrainHeight(nearby) < activePlanet.seaLevel + 0.35) {
+              wetNeighbors++;
+              if (wetNeighbors === 1) coastBearing = bearing;
+            }
           }
           score += wetNeighbors * 2.8;
+          if (wetNeighbors > 0) score += 0.2;
         }
         if (score > bestScore) {
           bestScore = score;
           best.copy(candidate);
+          if (activePlanet.hasOcean) bestFacing = coastBearing;
         }
       }
+      spawnYaw = bestFacing;
       return best;
     }
     function orientPlayer(forwardHint) {
       if (!player) return;
       const frame = surfaceFrame(surfaceNormal);
-      const forward = forwardHint ? forwardHint.clone() : frame.north.clone();
+      const forward = forwardHint ? forwardHint.clone() : frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw));
       forward.addScaledVector(surfaceNormal, -forward.dot(surfaceNormal)).normalize();
       if (forward.lengthSq() < 0.0001) forward.copy(frame.north);
       const right = new THREE.Vector3().crossVectors(surfaceNormal, forward).normalize();
@@ -984,6 +992,7 @@
       startButton.textContent = "تهيئة سطح الكوكب...";
       await createPlanetSurface();
       surfaceNormal.copy(findSpawnNormal());
+      cameraYaw = spawnYaw;
       startButton.textContent = "إنشاء الحياة والموارد...";
       await createPlanetResources();
       applyPlanetEnvironment();
@@ -994,7 +1003,7 @@
       window.addEventListener('orientationchange', () => setTimeout(onResize, 180), { passive: true });
       bindControls();
       startButton.textContent = 'ابدأ الاستكشاف';
-      status.textContent = 'تحرك فوق سطح الكوكب الكروي • اسحب لتدوير الكاميرا';
+      status.textContent = 'استكشف الساحل والسهول • امسح البلورات واجمعها';
       return true;
     }
 
@@ -1193,12 +1202,13 @@
       try {
         await createPlanetSurface();
         surfaceNormal.copy(findSpawnNormal());
+        cameraYaw = spawnYaw;
         await createPlanetResources();
         verticalOffset = 0;
         verticalVelocity = 0;
         onGround = true;
         player.position.copy(surfacePoint(surfaceNormal));
-        cameraYaw = (activePlanet.seed / 4294967295) * Math.PI * 2;
+        cameraYaw = spawnYaw;
         cameraPitch = 0.38;
         orientPlayer(null);
         applyPlanetEnvironment();
