@@ -42,6 +42,7 @@
     #planet-subtitle { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; white-space: nowrap; }
     #open-planet-map { border: 1px solid rgba(112,216,232,.34); border-radius: 10px; padding: 8px 10px; color: #dffaff; background: rgba(63,150,171,.2); font: 600 10px Tahoma, Arial, sans-serif; white-space: nowrap; }
     #open-planet-map:active { transform: scale(.96); }
+    #open-settings { position:absolute; z-index:15; top:12px; left:12px; width:38px; height:38px; border:1px solid rgba(112,216,232,.4); border-radius:10px; color:#e8fbff; background:rgba(12,34,48,.92); font-size:20px; }
     .settings-grid{display:grid;gap:12px;margin:16px 0}.setting-row{display:grid;grid-template-columns:1fr 45%;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px}.setting-row span{font-size:11px;color:var(--text)}.setting-row small{display:block;color:var(--muted);font-size:9px}.setting-row select{min-height:38px;border-radius:8px;background:#102532;color:white;padding:6px}
     .modal { position: absolute; z-index: 18; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(1,8,14,.72); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); }
     .modal.hidden { display: none; }
@@ -454,7 +455,7 @@
     let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight, starField = null;
     let enemyDrones = [], projectiles = [], projectileGeometry = null, playerBoltMaterial = null, enemyBoltMaterial = null;
     let droneBodyGeometry = null, droneRingGeometry = null, droneEyeGeometry = null, droneBodyMaterial = null, droneRingMaterial = null, droneEyeMaterial = null;
-    let planeRoot = null, planeNormal = null, planeMode = false, planeThrottle = 0, planeSpeed = 0, planeBank = 0, planeClimbHeld = 0, planeLandingRequested = false, planeLanded = true, planeFlightDistance = 0, planeCertified = false;
+    let planeRoot = null, planeNormal = null, planeMode = false, planeThrottle = 0, planeSpeed = 0, planeYawRate = 0, planeBank = 0, planeClimbHeld = 0, planeLandingRequested = false, planeLanded = true, planeFlightDistance = 0, planeCertified = false;
     let enemyKills = 0, salvageCredits = 0, playerHealth = 100, lastDamageAt = 0, weaponCooldown = 0, caveVisited = false, homeNormal = null;
     let bossSpawned = false, bossDefeated = false, planeUpgraded = false;
     let player, leftLeg, rightLeg, leftArm, rightArm;
@@ -766,7 +767,7 @@
         planeRoot = null;
       }
       clearCombatEntities();
-      planeNormal = null; planeMode = false; planeThrottle = 0; planeSpeed = 0;
+      planeNormal = null; planeMode = false; planeThrottle = 0; planeSpeed = 0; planeYawRate = 0;
       caveRoot = null; caveNormal = null; roverNormal = null; shipNormal = null;
       caveMode = false; drivingRover = false; shipMode = false; shipAirborne = false; shipCanExit = false;
       oreMesh = null; oreNodes = [];
@@ -951,23 +952,32 @@
         crystalMaterial, mineralNodeTarget);
 
       let floraAdded = 0, grassAdded = 0, rocksAdded = 0, mineralsAdded = 0;
-      for (let attempt = 0; attempt < floraCount * 9 && floraAdded < floraCount; attempt++) {
-        const sample = sampleDryLand(120, 3400);
-        if (sample) {
-          const height = 8 + random() * 10;
-          const rotation = random() * Math.PI * 2;
-          placeRadialInstance(trunkMesh, floraAdded, sample.normal, sample.height, height * 0.5,
-            [1.12, height, 1.12], rotation, dummy, up);
-          placeRadialInstance(lowerCrown, floraAdded, sample.normal, sample.height, height * 1.03,
-            [height * 0.9, height * 0.78, height * 0.9], rotation, dummy, up);
-          placeRadialInstance(upperCrown, floraAdded, sample.normal, sample.height, height * 1.62,
-            [height * 0.66, height * 0.64, height * 0.66], rotation + 0.16, dummy, up);
-          floraAdded++;
+      // Plant in distinct groves with open clearings between them.
+      const groveCount=GAME_SETTINGS.quality==='low'?5:(GAME_SETTINGS.quality==='medium'?8:12),groves=[];
+      for(let g=0;g<groveCount;g++){const center=sampleDryLand(280+random()*650,3900);if(center)groves.push({normal:center.normal,radius:180+random()*310});}
+      const perGrove=Math.ceil(floraCount/Math.max(1,groves.length));
+      for(let g=0;g<groves.length&&floraAdded<floraCount;g++){
+        let made=0,tries=0;
+        while(made<perGrove&&floraAdded<floraCount&&tries++<perGrove*18){
+          const grove=groves[g],distance=Math.sqrt(random())*grove.radius,bearing=random()*Math.PI*2,frame=surfaceFrame(grove.normal);
+          const tangent=frame.north.clone().multiplyScalar(Math.cos(bearing)).addScaledVector(frame.east,Math.sin(bearing)),angle=distance/PLANET_RADIUS;
+          const normal=grove.normal.clone().multiplyScalar(Math.cos(angle)).addScaledVector(tangent,Math.sin(angle)).normalize(),heightAt=surfaceHeightAt(normal);
+          if(activePlanet.hasOcean&&heightAt<=activePlanet.seaLevel+.75)continue;
+          const h=8+random()*10,r=random()*Math.PI*2,sc=.8+random()*.55;
+          placeRadialInstance(trunkMesh,floraAdded,normal,heightAt,h*sc*.5,[1.12*sc,h*sc,1.12*sc],r,dummy,up);
+          placeRadialInstance(lowerCrown,floraAdded,normal,heightAt,h*1.03*sc,[h*.9*sc,h*.78*sc,h*.9*sc],r,dummy,up);
+          placeRadialInstance(upperCrown,floraAdded,normal,heightAt,h*1.62*sc,[h*.66*sc,h*.64*sc,h*.66*sc],r+.16,dummy,up);
+          floraAdded++;made++;
         }
-        if (attempt > 0 && attempt % 55 === 0) {
-          startButton.textContent = 'إنماء الغطاء النباتي... ' + Math.round(floraAdded / floraCount * 100) + '%';
-          await new Promise(resolve => requestAnimationFrame(resolve));
-        }
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+      }
+      for(let attempt=0;attempt<floraCount*12&&floraAdded<floraCount;attempt++){
+        const sample=sampleDryLand(120,4200);if(!sample)continue;
+        const h=8+random()*10,r=random()*Math.PI*2,sc=.8+random()*.55;
+        placeRadialInstance(trunkMesh,floraAdded,sample.normal,sample.height,h*sc*.5,[1.12*sc,h*sc,1.12*sc],r,dummy,up);
+        placeRadialInstance(lowerCrown,floraAdded,sample.normal,sample.height,h*1.03*sc,[h*.9*sc,h*.78*sc,h*.9*sc],r,dummy,up);
+        placeRadialInstance(upperCrown,floraAdded,sample.normal,sample.height,h*1.62*sc,[h*.66*sc,h*.64*sc,h*.66*sc],r+.16,dummy,up);
+        floraAdded++;
       }
 
       for (let attempt = 0; attempt < grassCount * 8 && grassAdded < grassCount; attempt++) {
@@ -1612,7 +1622,7 @@
       planeRoot.traverse(node => { if (node.isMesh) { node.castShadow = !IS_TOUCH_DEVICE; node.receiveShadow = !IS_TOUCH_DEVICE; } });
       scene.add(planeRoot);
       planeRoot.visible = true;
-      planeMode = false; planeThrottle = 0; planeSpeed = 0; planeBank = 0;
+      planeMode = false; planeThrottle = 0; planeSpeed = 0; planeYawRate = 0; planeBank = 0;
       planeClimbHeld = 0; planeLandingRequested = false; planeLanded = true;
     }
 
@@ -1622,7 +1632,7 @@
         if (!planeRoot || !planeNormal) return;
         const distance = Math.acos(clamp(surfaceNormal.dot(planeNormal), -1, 1)) * PLANET_RADIUS;
         if (distance > 45) { showToast('اقترب من الطائرة أولاً'); return; }
-        planeMode = true; planeThrottle = 0.12; planeSpeed = 10;
+        planeMode = true; planeThrottle = 0.08; planeSpeed = 8; planeYawRate = 0; planeBank = 0;
         planeLanded = true; planeLandingRequested = false; planeClimbHeld = 0;
         player.visible = false; planeRoot.visible = true;
         showToast('صعدت إلى الطائرة — ادفع العصا للأمام لزيادة السرعة، واضغط صعود للارتفاع');
