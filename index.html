@@ -652,7 +652,7 @@
       else if (biomeName === 'صفائح جليدية') floraFactor = 0.44;
 
       const floraCount = Math.max(28, Math.floor((LOW_END_DEVICE ? 250 : 390) * floraFactor));
-      const grassCount = LOW_END_DEVICE ? 520 : 900;
+      const grassCount = Math.max(70, Math.floor((LOW_END_DEVICE ? 520 : 900) * floraFactor));
       const rockCount = LOW_END_DEVICE ? 170 : 280;
       const mineralNodeTarget = LOW_END_DEVICE ? 96 : 150;
       const cloudCount = LOW_END_DEVICE ? 45 : 72;
@@ -754,7 +754,7 @@
           (nearCluster ? sampleDryLand(24, 66) : sampleDryLand(60, 135));
         if (sample) {
           const size = 0.95 + random() * 0.62;
-          placeRadialInstance(crystals, mineralsAdded, sample.normal, sample.height, size * 1.02,
+          placeRadialInstance(crystals, mineralsAdded, sample.normal, sample.height, size * 2.22,
             [size * 0.92, size * 2.5, size * 0.92],
             random() * Math.PI * 2, dummy, up);
           mineralNodes.push({ normal: sample.normal.clone(), instance: mineralsAdded, collected: false });
