@@ -98,6 +98,9 @@
     #health-fill { display:block; height:100%; width:100%; background:linear-gradient(90deg,#e05d58,#e8c76e); transition:width .2s; }
     #combat-hud strong { color:#f4d58e; min-width:14px; }
     #reticle { position:absolute; z-index:4; left:50%; top:50%; width:9px; height:9px; transform:translate(-50%,-50%); border:1px solid rgba(231,249,255,.88); border-radius:50%; box-shadow:0 0 5px rgba(0,0,0,.8); pointer-events:none; opacity:.65; }
+    #boss-hud { position:absolute; z-index:6; left:50%; top:148px; transform:translateX(-50%); display:flex; align-items:center; gap:8px; padding:7px 11px; border-radius:11px; color:#ffe0d8; font-size:9px; pointer-events:none; }
+    #boss-track { width:104px; height:7px; border-radius:8px; background:rgba(255,255,255,.16); overflow:hidden; }
+    #boss-fill { display:block; width:100%; height:100%; background:linear-gradient(90deg,#b52c39,#ff985f); }
     #start-screen { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; padding: 22px; background: radial-gradient(ellipse at 50% 35%, rgba(13,49,66,.4), rgba(2,9,16,.78)); }
     .start-card { width: min(430px, 100%); padding: 27px; border-radius: 23px; text-align: center; }
     .start-orb { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; font-size: 35px; color: #a3eff4; background: radial-gradient(circle at 35% 30%, #a4ebdf, #287d8c 55%, #102b43 78%); box-shadow: 0 0 45px rgba(79,194,211,.23); }
@@ -142,12 +145,13 @@
     </div>
     <div id="status" class="glass">استكشف الساحل والسهول</div>
     <div id="inventory" class="glass">بلورات: <strong id="mineral-count">0</strong> · خام: <strong id="ore-count">0</strong></div>
-    <div id="mission" class="glass">1/5 حارس الحدود: أسقط 3 مسيّرات</div>
+    <div id="mission" class="glass">1/6 دورية الحماية: أسقط 3 مسيّرات</div>
     <div id="survival" class="glass"><span>O₂</span><span id="oxygen-track"><i id="oxygen-fill"></i></span><strong id="oxygen-value">100%</strong><span>وقود</span><strong id="fuel-value">100%</strong></div>
-    <div id="combat-hud" class="glass"><span>درع</span><span id="health-track"><i id="health-fill"></i></span><strong id="health-value">100</strong><span>إسقاطات</span><strong id="kill-count">0</strong><span>خردة</span><strong id="salvage-count">0</strong></div>
+    <div id="combat-hud" class="glass"><span>صحة</span><span id="health-track"><i id="health-fill"></i></span><strong id="health-value">100</strong><span>إسقاطات</span><strong id="kill-count">0</strong><span>خردة</span><strong id="salvage-count">0</strong></div>
+    <div id="boss-hud" class="glass hidden"><span>حارس المدار</span><span id="boss-track"><i id="boss-fill"></i></span><strong id="boss-health">12</strong></div>
     <div id="reticle"></div>
     <div id="resource-hint" aria-live="polite"></div>
-    <div id="help" class="glass"><b>W A S D</b> حركة · <b>Shift</b> ركض/تسارع · <b>Space</b> قفز/صعود · <b>Ctrl</b> هبوط بالطائرة<br>اسحب يميناً للكاميرا · للأعلى للنظر إلى السماء · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة · <b>B</b> مكوك · <b>P</b> طائرة · <b>X</b> إطلاق</div>
+    <div id="help" class="glass"><b>W A S D</b> حركة · <b>Shift</b> ركض/تسارع · <b>Space</b> قفز/صعود · <b>Ctrl</b> هبوط بالطائرة<br>اسحب يميناً للكاميرا · للأعلى للنظر إلى السماء · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة · <b>B</b> مكوك · <b>P</b> طائرة · <b>X</b> إطلاق · <b>U</b> إصلاح/ترقية</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
     <div id="actions">
       <button class="action" id="scan" aria-label="البحث عن المعادن" title="تحديد أقرب بلورة"><span>⌕</span><small>بحث</small></button>
@@ -159,6 +163,7 @@
       <button class="action hidden" id="plane" aria-label="قيادة الطائرة والإقلاع والهبوط"><span>✈</span><small>طائرة</small></button>
       <button class="action hidden" id="fire" aria-label="إطلاق النار على الطائرات المسيّرة"><span>✹</span><small>إطلاق</small></button>
       <button class="action hidden" id="descend" aria-label="خفض ارتفاع الطائرة"><span>↓</span><small>هبوط</small></button>
+      <button class="action hidden" id="upgrade" aria-label="إصلاح الدرع أو ترقية المحرك"><span>⬆</span><small>ترقية</small></button>
       <button class="action" id="camera-reset" aria-label="إعادة الكاميرا خلف الشخصية" title="إعادة الكاميرا"><span>↻</span><small>كاميرا</small></button>
       <button class="action" id="sprint" aria-label="الركض" title="اضغط باستمرار للركض"><span>»</span><small>ركض</small></button>
       <button class="action" id="jump" aria-label="قفز">↑<small>قفز</small></button>
@@ -170,7 +175,7 @@
         <h1>مرحباً أيها المستكشف</h1>
         <p>تجوّل في قارات شاسعة، وتسلق سلاسل جبلية وهضاباً صخرية، واعبر الوديان والسواحل تحت غيوم وطقس يتغير من كوكب إلى آخر. شاهد تعاقب النهار والليل والنجوم، امسح البلورات واستخرج الخام وقُد مركبات الاستكشاف وأكمل المهمة.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
-        <span class="note">اللعبة أفقية. الهاتف: العصا اليسرى للحركة؛ عند قيادة الطائرة ادفعها للأمام لزيادة السرعة ويميناً/يساراً للانعطاف. زر ↑ للصعود وزر ↓ للهبوط وزر إطلاق لمهاجمة المسيّرات. على الكمبيوتر: P للطائرة وX للإطلاق وSpace للصعود وCtrl للهبوط. أكمل مراحل الحملة واجمع قطع الخردة من الأعداء.</span>
+        <span class="note">اللعبة أفقية. العصا اليسرى للحركة؛ عند قيادة الطائرة ادفعها للأمام للتسارع ويميناً/يساراً للانعطاف. زر ↑ للصعود و↓ للهبوط. زر إطلاق يهاجم المسيّرات. اجمع الخردة لترميم الصحة أو ترقية محرك الطائرة. على الكمبيوتر: P للطائرة وX للإطلاق وU للإصلاح/الترقية وSpace للصعود وCtrl للهبوط.</span>
       </div>
     </section>
     <section id="planet-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="planet-modal-title">
@@ -437,9 +442,10 @@
 
     let scene, camera, renderer, sky, sunSprite, sunLight, astronaut, skyUniforms, hemiLight, starField = null;
     let enemyDrones = [], projectiles = [], projectileGeometry = null, playerBoltMaterial = null, enemyBoltMaterial = null;
-    let droneBodyGeometry = null, droneRingGeometry = null, droneBodyMaterial = null, droneRingMaterial = null, droneEyeMaterial = null;
+    let droneBodyGeometry = null, droneRingGeometry = null, droneEyeGeometry = null, droneBodyMaterial = null, droneRingMaterial = null, droneEyeMaterial = null;
     let planeRoot = null, planeNormal = null, planeMode = false, planeThrottle = 0, planeSpeed = 0, planeBank = 0, planeClimbHeld = 0, planeLandingRequested = false, planeLanded = true, planeFlightDistance = 0, planeCertified = false;
     let enemyKills = 0, salvageCredits = 0, playerHealth = 100, lastDamageAt = 0, weaponCooldown = 0, caveVisited = false, homeNormal = null;
+    let bossSpawned = false, bossDefeated = false, planeUpgraded = false;
     let player, leftLeg, rightLeg, leftArm, rightArm;
     let planetSurface, oceanMesh, atmosphereMesh, oceanTexture = null;
     let terrainVertexData = null, terrainGridWidth = 0, terrainGridHeight = 0;
@@ -487,6 +493,10 @@
     const planeButton = document.getElementById('plane');
     const fireButton = document.getElementById('fire');
     const descendButton = document.getElementById('descend');
+    const upgradeButton = document.getElementById('upgrade');
+    const bossHud = document.getElementById('boss-hud');
+    const bossFill = document.getElementById('boss-fill');
+    const bossHealthLabel = document.getElementById('boss-health');
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
     const jumpButton = document.getElementById('jump');
@@ -1155,6 +1165,7 @@
       missionCompleted = false;
       enemyKills = 0; salvageCredits = 0; caveVisited = false;
       planeFlightDistance = 0; planeCertified = false;
+      bossSpawned = false; bossDefeated = false; planeUpgraded = false;
       playerHealth = 100;
       healthFill.style.width = '100%'; healthValue.textContent = '100';
       killCountLabel.textContent = '0'; salvageCountLabel.textContent = '0';
@@ -1164,7 +1175,12 @@
       missionLabel.textContent = 'مهمة الاستكشاف: اجمع 5 بلورات';
       trackedMineral = nearestMineral(4800)?.node || null;
       loadPlanetProgress();
+      updateMissionProgress();
       createEnemyDrones();
+      if (enemyKills >= 3 && !bossDefeated) {
+        bossSpawned = false;
+        spawnGuardianBoss();
+      }
       mineButton.classList.add('hidden');
       caveButton.classList.add('hidden');
       vehicleButton.classList.add('hidden');
@@ -1222,7 +1238,10 @@
           salvageCredits,
           caveVisited,
           planeFlightDistance,
-          planeCertified
+          planeCertified,
+          bossSpawned,
+          bossDefeated,
+          planeUpgraded
         };
         localStorage.setItem('madar.progress.' + activePlanet.id, JSON.stringify(data));
       } catch (_) { /* storage is optional; a full quota must not stop gameplay */ }
@@ -1270,6 +1289,9 @@
       caveVisited = !!data.caveVisited;
       planeFlightDistance = clamp(Number(data.planeFlightDistance) || 0, 0, 10000000);
       planeCertified = !!data.planeCertified;
+      bossSpawned = !!data.bossSpawned;
+      bossDefeated = !!data.bossDefeated;
+      planeUpgraded = !!data.planeUpgraded;
       mineralCount.textContent = String(mineralsCollected);
       oreCountLabel.textContent = String(oresCollected);
       killCountLabel.textContent = String(enemyKills);
@@ -1344,15 +1366,17 @@
         return;
       }
       if (enemyKills < 3) {
-        missionLabel.textContent = '1/5 حارس الحدود: أسقط 3 مسيّرات ' + enemyKills + '/3';
+        missionLabel.textContent = '1/6 دورية الحماية: أسقط 3 مسيّرات ' + enemyKills + '/3';
+      } else if (!bossDefeated) {
+        missionLabel.textContent = '2/6 حارس المدار: أسقط الطائرة القيادية المدرّعة';
       } else if (mineralsCollected < 5) {
-        missionLabel.textContent = '2/5 استعادة البيانات: اجمع 5 بلورات ' + mineralsCollected + '/5';
+        missionLabel.textContent = '3/6 استعادة البيانات: اجمع 5 بلورات ' + mineralsCollected + '/5';
       } else if (oresCollected < 3) {
-        missionLabel.textContent = '3/5 التعدين: استخرج 3 خامات ' + oresCollected + '/3';
+        missionLabel.textContent = '4/6 التعدين: استخرج 3 خامات ' + oresCollected + '/3';
       } else if (!caveVisited) {
-        missionLabel.textContent = '4/5 سر الكهف: ادخل الكهف واستكشفه';
+        missionLabel.textContent = '5/6 سر الكهف: ادخل الكهف واستكشفه';
       } else if (!planeCertified) {
-        missionLabel.textContent = '5/5 دورية جوية: حلّق 600م ثم اهبط ' + Math.floor(planeFlightDistance) + '/600م';
+        missionLabel.textContent = '6/6 دورية جوية: حلّق 600م ثم اهبط ' + Math.floor(planeFlightDistance) + '/600م';
       } else {
         missionCompleted = true;
         salvageCredits += 100;
@@ -1389,6 +1413,7 @@
       if (distance > 18) { showToast('اقترب من مدخل الكهف أولاً'); return; }
       caveMode = true;
       caveVisited = true;
+      savePlanetProgress();
       caveLocalPosition = new THREE.Vector3(0, 0.08, 18);
       player.position.copy(caveRoot.localToWorld(caveLocalPosition.clone()));
       player.quaternion.copy(caveRoot.quaternion);
@@ -1634,21 +1659,23 @@
       if (droneBodyMaterial) droneBodyMaterial.dispose();
       if (droneRingMaterial) droneRingMaterial.dispose();
       if (droneEyeMaterial) droneEyeMaterial.dispose();
+      if (droneEyeGeometry) droneEyeGeometry.dispose();
       if (projectileGeometry) projectileGeometry.dispose();
       if (playerBoltMaterial) playerBoltMaterial.dispose();
       if (enemyBoltMaterial) enemyBoltMaterial.dispose();
-      droneBodyGeometry = droneRingGeometry = droneBodyMaterial = droneRingMaterial = droneEyeMaterial = null;
+      droneBodyGeometry = droneRingGeometry = droneEyeGeometry = droneBodyMaterial = droneRingMaterial = droneEyeMaterial = null;
       projectileGeometry = playerBoltMaterial = enemyBoltMaterial = null;
     }
 
     function createEnemyDrones() {
       enemyDrones = [];
-      const remaining = Math.max(0, (LOW_END_DEVICE ? 4 : 6) - enemyKills);
+      const remaining = Math.max(0, 3 - enemyKills);
       droneBodyGeometry = new THREE.OctahedronGeometry(2.1, 0);
       droneRingGeometry = new THREE.TorusGeometry(2.9, 0.16, 5, 12);
       droneBodyMaterial = new THREE.MeshStandardMaterial({ color: 0xd35c54, emissive: 0x7d151a, emissiveIntensity: 1.1, metalness: 0.35, roughness: 0.42 });
       droneRingMaterial = new THREE.MeshStandardMaterial({ color: 0x49515e, metalness: 0.72, roughness: 0.32 });
       droneEyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffb1a0 });
+      droneEyeGeometry = new THREE.SphereGeometry(0.62, 7, 6);
       const rng = randomFromSeed((activePlanet.seed ^ 0xD20E5) >>> 0);
       const originFrame = surfaceFrame(surfaceNormal);
       for (let i = 0; i < remaining; i++) {
@@ -1662,13 +1689,62 @@
         const core = new THREE.Mesh(droneBodyGeometry, droneBodyMaterial);
         const ring = new THREE.Mesh(droneRingGeometry, droneRingMaterial);
         ring.rotation.x = Math.PI / 2;
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.62, 7, 6), droneEyeMaterial);
+        const eye = new THREE.Mesh(droneEyeGeometry, droneEyeMaterial);
         eye.position.set(0, 0, 2.0);
         root.add(core, ring, eye);
         root.position.copy(surfacePoint(normal, 26));
         scene.add(root);
-        enemyDrones.push({ root, core, ring, normal, health: 3, cooldown: 1.2 + rng() * 1.5, phase: rng() * Math.PI * 2, alive: true });
+        enemyDrones.push({ root, core, ring, normal, health: 3, maxHealth: 3, speed: 32, attackRange: 235, cooldown: 1.2 + rng() * 1.5, phase: rng() * Math.PI * 2, alive: true, isBoss: false });
       }
+    }
+
+    function spawnGuardianBoss() {
+      if (bossSpawned || bossDefeated || !droneBodyGeometry) return;
+      bossSpawned = true;
+      const frame = surfaceFrame(surfaceNormal);
+      const bearing = cameraYaw + Math.PI * 0.82;
+      const tangent = frame.north.clone().multiplyScalar(Math.cos(bearing)).addScaledVector(frame.east, Math.sin(bearing));
+      const distance = 420;
+      const normal = surfaceNormal.clone().multiplyScalar(Math.cos(distance / PLANET_RADIUS))
+        .addScaledVector(tangent, Math.sin(distance / PLANET_RADIUS)).normalize();
+      const root = new THREE.Group();
+      const core = new THREE.Mesh(droneBodyGeometry, droneBodyMaterial);
+      const ring = new THREE.Mesh(droneRingGeometry, droneRingMaterial);
+      ring.rotation.x = Math.PI / 2;
+      ring.scale.setScalar(1.7);
+      const eye = new THREE.Mesh(droneEyeGeometry, droneEyeMaterial);
+      eye.position.set(0, 0, 3.2);
+      root.add(core, ring, eye);
+      root.scale.setScalar(2.7);
+      root.position.copy(surfacePoint(normal, 44));
+      scene.add(root);
+      enemyDrones.push({ root, core, ring, normal, health: 12, maxHealth: 12, speed: 18, attackRange: 420,
+        cooldown: 1.0, phase: 2.4, alive: true, isBoss: true });
+      showToast('تحذير: ظهر حارس المدار المدرّع!');
+      savePlanetProgress();
+      updateMissionProgress();
+    }
+
+    function upgradeAircraftOrRepair() {
+      if (!running || traveling || planeMode) return;
+      if (playerHealth < 100 && salvageCredits >= 20) {
+        salvageCredits -= 20;
+        playerHealth = 100;
+        showToast('تم إصلاح الدرع · -20 خردة');
+      } else if (!planeUpgraded && salvageCredits >= 50) {
+        salvageCredits -= 50;
+        planeUpgraded = true;
+        showToast('تم تركيب محرك محسّن · سرعة الطائرة +22%');
+      } else if (playerHealth < 100) {
+        showToast('تحتاج 20 قطعة خردة لإصلاح الدرع');
+      } else if (!planeUpgraded) {
+        showToast('تحتاج 50 قطعة خردة لترقية المحرك');
+      }
+      salvageCountLabel.textContent = String(salvageCredits);
+      healthFill.style.width = playerHealth + '%';
+      healthValue.textContent = String(Math.round(playerHealth));
+      savePlanetProgress();
+      updateInteractables();
     }
 
     function updateCombat(dt) {
@@ -1678,20 +1754,25 @@
         if (!enemy.alive) continue;
         const dot = clamp(enemy.normal.dot(surfaceNormal), -1, 1);
         const angle = Math.acos(dot);
-        if (angle > 0.003 && angle < 0.24) {
+        if (angle > 0.003 && angle < 0.32) {
           const tangent = surfaceNormal.clone().addScaledVector(enemy.normal, -dot).normalize();
-          const step = Math.min(angle, 32 / PLANET_RADIUS * dt);
+          const step = Math.min(angle, enemy.speed / PLANET_RADIUS * dt);
           enemy.normal.copy(enemy.normal.multiplyScalar(Math.cos(step)).addScaledVector(tangent, Math.sin(step))).normalize();
         }
         enemy.root.position.copy(surfacePoint(enemy.normal, 25 + Math.sin(elapsed * 2.3 + enemy.phase) * 3));
         enemy.root.rotation.y += dt * (0.5 + enemy.phase * 0.2);
         const distance = Math.acos(clamp(surfaceNormal.dot(enemy.normal), -1, 1)) * PLANET_RADIUS;
         enemy.cooldown -= dt;
-        if (distance < 235 && enemy.cooldown <= 0 && !caveMode &&
+        if (distance < enemy.attackRange && enemy.cooldown <= 0 && !caveMode &&
             projectiles.filter(p => p.owner === 'enemy').length < (LOW_END_DEVICE ? 3 : 7)) {
           const direction = player.position.clone().sub(enemy.root.position).normalize();
           spawnProjectile(enemy.root.position.clone().addScaledVector(direction, 3), direction, 'enemy');
-          enemy.cooldown = 2.0 + enemy.phase * 0.5;
+          if (enemy.isBoss) {
+            const right = new THREE.Vector3().crossVectors(direction, surfaceNormal).normalize();
+            spawnProjectile(enemy.root.position.clone().addScaledVector(direction, 3).addScaledVector(right, 1.5),
+              direction.clone().addScaledVector(right, 0.10), 'enemy');
+          }
+          enemy.cooldown = enemy.isBoss ? 1.1 : (2.0 + enemy.phase * 0.5);
         }
       }
       for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -1703,14 +1784,22 @@
           for (const enemy of enemyDrones) {
             if (!enemy.alive || shot.mesh.position.distanceToSquared(enemy.root.position) > 34) continue;
             enemy.health--;
-            enemy.core.scale.setScalar(Math.max(0.45, enemy.health / 3));
+            enemy.core.scale.setScalar(Math.max(0.35, enemy.health / enemy.maxHealth));
             if (enemy.health <= 0) {
               enemy.alive = false; enemy.root.visible = false;
-              enemyKills++; salvageCredits += 15;
+              if (enemy.isBoss) {
+                bossDefeated = true;
+                salvageCredits += 60;
+                showToast('سقط حارس المدار! +60 قطعة خردة');
+              } else {
+                enemyKills++;
+                salvageCredits += 15;
+                if (enemyKills >= 3) spawnGuardianBoss();
+                showToast('تم إسقاط المسيّرة · +15 قطعة خردة');
+              }
               killCountLabel.textContent = String(enemyKills);
               salvageCountLabel.textContent = String(salvageCredits);
               updateMissionProgress(); savePlanetProgress();
-              showToast('تم إسقاط المسيّرة · +15 قطعة خردة');
             }
             consumed = true; break;
           }
@@ -1821,6 +1910,11 @@
       const nearbyThreat = enemyDrones.some(enemy => enemy.alive &&
         Math.acos(clamp(surfaceNormal.dot(enemy.normal), -1, 1)) * PLANET_RADIUS < 750);
       fireButton.classList.toggle('hidden', !nearbyThreat && !planeMode);
+      const planeDistanceForShop = planeNormal ? Math.acos(clamp(surfaceNormal.dot(planeNormal), -1, 1)) * PLANET_RADIUS : Infinity;
+      const canRepair = playerHealth < 100 && salvageCredits >= 20;
+      const canUpgrade = !planeUpgraded && salvageCredits >= 50;
+      upgradeButton.classList.toggle('hidden', planeMode || planeDistanceForShop > 45 || (!canRepair && !canUpgrade));
+      upgradeButton.querySelector('small').textContent = canRepair ? 'إصلاح' : 'محرك';
       if (shipMode) {
         shipButton.classList.remove('hidden');
         shipButton.querySelector('small').textContent = shipCanExit && onGround ? 'ترجل' : (shipAirborne ? 'هبوط' : 'إقلاع');
@@ -2048,6 +2142,7 @@
         if (e.key.toLowerCase() === 'b' && running) shipAction();
         if (e.key.toLowerCase() === 'p' && running) planeAction();
         if (e.key.toLowerCase() === 'x' && running) fireWeapon();
+        if (e.key.toLowerCase() === 'u' && running) upgradeAircraftOrRepair();
         if (e.code === 'Space' && planeMode) planeClimbHeld = 1;
         if (e.key === 'Control' && planeMode) planeClimbHeld = -1;
       }, { passive: false });
@@ -2146,6 +2241,7 @@
       shipButton.addEventListener('pointerdown', e => { e.preventDefault(); shipAction(); });
       planeButton.addEventListener('pointerdown', e => { e.preventDefault(); planeAction(); });
       fireButton.addEventListener('pointerdown', e => { e.preventDefault(); fireWeapon(); });
+      upgradeButton.addEventListener('pointerdown', e => { e.preventDefault(); upgradeAircraftOrRepair(); });
       descendButton.addEventListener('pointerdown', e => { e.preventDefault(); if (planeMode) planeClimbHeld = -1; });
       descendButton.addEventListener('pointerup', () => { if (planeMode) planeClimbHeld = 0; });
       descendButton.addEventListener('pointercancel', () => { if (planeMode) planeClimbHeld = 0; });
@@ -2234,7 +2330,7 @@
         if (input.strafe !== 0) cameraYawTarget += input.strafe * dt * 0.78;
         const frame = surfaceFrame(surfaceNormal);
         const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
-        const airSpeed = 12 + planeThrottle * 116;
+        const airSpeed = 12 + planeThrottle * 116 * (planeUpgraded ? 1.22 : 1);
         const distance = airSpeed * dt;
         const oldNormal = surfaceNormal.clone();
         const angle = distance / PLANET_RADIUS;
@@ -2248,14 +2344,14 @@
         if (verticalOffset <= 0.01) {
           verticalOffset = 0;
           if (verticalVelocity < 0) verticalVelocity = 0;
-          if (planeLandingRequested || airSpeed < 43) {
             planeLanded = true;
+          if (planeLandingRequested) {
             planeLandingRequested = false;
-            if (planeFlightDistance >= 600) planeCertified = true;
-            if (planeCertified) { savePlanetProgress(); updateMissionProgress(); }
+            showToast('تم الهبوط بنجاح');
           }
+          if (planeFlightDistance >= 600) planeCertified = true;
+          if (planeCertified) { savePlanetProgress(); updateMissionProgress(); }
         } else planeLanded = false;
-        if (airSpeed > 80 && verticalOffset > 1.2) planeLanded = false;
         planeBank += (clamp(input.strafe, -1, 1) * 0.62 - planeBank) * (1 - Math.exp(-4.5 * dt));
         const rightAxis = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
         const correctedForward = new THREE.Vector3().crossVectors(rightAxis, surfaceNormal).normalize();
