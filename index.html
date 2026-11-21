@@ -65,6 +65,10 @@
     #inventory { position: absolute; z-index: 6; left: 50%; bottom: max(13px, env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 8px 13px; border-radius: 12px; color: var(--muted); font-size: 10px; white-space: nowrap; pointer-events: none; }
     #inventory strong { color: #f3d58c; font-size: 12px; margin-inline-start: 4px; }
     #mission { position: absolute; z-index: 6; left: 50%; bottom: max(51px, calc(env(safe-area-inset-bottom) + 46px)); transform: translateX(-50%); padding: 7px 11px; border-radius: 11px; color: #cdebf0; font-size: 9px; white-space: nowrap; pointer-events: none; }
+    #survival { position:absolute; z-index:6; top:112px; left:14px; display:flex; align-items:center; gap:7px; padding:7px 10px; border-radius:11px; color:#d9edf2; font-size:9px; pointer-events:none; }
+    #oxygen-track { width:74px; height:6px; border-radius:6px; overflow:hidden; background:rgba(255,255,255,.16); }
+    #oxygen-fill { display:block; width:100%; height:100%; background:linear-gradient(90deg,#e0ae61,#79d9d0); transition:width .25s; }
+    #oxygen-value { min-width:26px; color:#f3d58c; }
     #resource-hint { position: absolute; z-index: 7; left: 50%; top: 112px; transform: translateX(-50%); max-width: min(80vw, 390px); padding: 9px 14px; border-radius: 13px; color: #e8fbff; background: rgba(4,20,29,.82); border: 1px solid rgba(111,218,226,.24); font-size: 11px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; }
     #resource-hint.show { opacity: 1; }
     #collect { border-color: rgba(243,201,119,.72); color: #fff0c5; background: rgba(104,70,24,.82); }
@@ -82,6 +86,9 @@
     #sprint { border-color: rgba(255,180,112,.55); color: #ffe0bb; font-size: 19px; }
     #sprint.held { background: rgba(154,83,38,.84); box-shadow: 0 0 0 3px rgba(255,191,128,.16), 0 8px 22px rgba(0,0,0,.3); }
     #camera-reset { border-color: rgba(112,216,232,.45); color: #c7f5fa; font-size: 21px; }
+    #mine { border-color:rgba(243,201,119,.65); color:#f4d58e; }
+    #cave { border-color:rgba(177,156,215,.66); color:#dfd0ff; }
+    #vehicle { border-color:rgba(112,216,232,.6); color:#a8edf2; }
     #start-screen { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; padding: 22px; background: radial-gradient(ellipse at 50% 35%, rgba(13,49,66,.4), rgba(2,9,16,.78)); }
     .start-card { width: min(430px, 100%); padding: 27px; border-radius: 23px; text-align: center; }
     .start-orb { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%; display: grid; place-items: center; font-size: 35px; color: #a3eff4; background: radial-gradient(circle at 35% 30%, #a4ebdf, #287d8c 55%, #102b43 78%); box-shadow: 0 0 45px rgba(79,194,211,.23); }
@@ -125,14 +132,18 @@
       </div>
     </div>
     <div id="status" class="glass">استكشف الساحل والسهول</div>
-    <div id="inventory" class="glass">بلورات جُمعت: <strong id="mineral-count">0</strong></div>
+    <div id="inventory" class="glass">بلورات: <strong id="mineral-count">0</strong> · خام: <strong id="ore-count">0</strong></div>
     <div id="mission" class="glass">مهمة الاستكشاف: اجمع 5 بلورات</div>
+    <div id="survival" class="glass"><span>O₂</span><span id="oxygen-track"><i id="oxygen-fill"></i></span><strong id="oxygen-value">100%</strong></div>
     <div id="resource-hint" aria-live="polite"></div>
-    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز<br>اسحب بالفأرة لتدوير الكاميرا · عجلة الفأرة للتقريب<br><b>E</b> للبحث عن المعادن · <b>F</b> للجمع</div>
+    <div id="help" class="glass"><b>W A S D</b> للحركة · <b>Shift</b> للركض · <b>Space</b> للقفز<br>اسحب بالفأرة لتدوير الكاميرا · عجلة الفأرة للتقريب<br><b>E</b> بحث · <b>F</b> جمع · <b>G</b> تعدين · <b>C</b> كهف · <b>V</b> عربة</div>
     <div id="joystick" aria-label="عصا الحركة"><div id="stick"></div></div>
     <div id="actions">
       <button class="action" id="scan" aria-label="البحث عن المعادن" title="تحديد أقرب بلورة"><span>⌕</span><small>بحث</small></button>
       <button class="action hidden" id="collect" aria-label="جمع البلورة" title="جمع البلورة"><span>✦</span><small>جمع</small></button>
+      <button class="action hidden" id="mine" aria-label="تعدين الخام"><span>⚒</span><small>تعدين</small></button>
+      <button class="action hidden" id="cave" aria-label="دخول الكهف أو الخروج منه"><span>⌂</span><small>كهف</small></button>
+      <button class="action hidden" id="vehicle" aria-label="قيادة المركبة أو الترجل"><span>▣</span><small>قيادة</small></button>
       <button class="action" id="camera-reset" aria-label="إعادة الكاميرا خلف الشخصية" title="إعادة الكاميرا"><span>↻</span><small>كاميرا</small></button>
       <button class="action" id="sprint" aria-label="الركض" title="اضغط باستمرار للركض"><span>»</span><small>ركض</small></button>
       <button class="action" id="jump" aria-label="قفز">↑<small>قفز</small></button>
@@ -144,7 +155,7 @@
         <h1>مرحباً أيها المستكشف</h1>
         <p>تجوّل في قارات شاسعة، وتسلق سلاسل جبلية وهضاباً صخرية، واعبر الوديان والسواحل تحت غيوم وطقس يتغير من كوكب إلى آخر. امسح البلورات واجمع العينات وأكمل مهمة الاستكشاف.</p>
         <button id="start-button">ابدأ الاستكشاف</button>
-        <span class="note">اللعبة أفقية. ادفع العصا اليسرى بالاتجاه الذي تريد التحرك إليه؛ اليمين يتحرك يميناً واليسار يساراً. اسحب في النصف الأيمن لتدوير الكاميرا، واستخدم إصبعين للتقريب والإبعاد. اجمع 5 بلورات لإكمال المهمة. قد يتغير الطقس بين المطر والثلج والغبار حسب الكوكب.</span>
+        <span class="note">اللعبة أفقية. العصا اليسرى للحركة، واسحب في النصف الأيمن لتدوير الكاميرا؛ اسحب للأعلى للنظر إلى السماء. زر التعدين يظهر قرب الصخور المعدنية، وزر الكهف عند المدخل، وزر العربة قرب المركبة. اجمع البلورات واستخرج الخام واستكشف الكهف، وراقب الأكسجين.</span>
       </div>
     </section>
     <section id="planet-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="planet-modal-title">
@@ -401,6 +412,8 @@
     let terrainVertexData = null, terrainGridWidth = 0, terrainGridHeight = 0;
     let resourceMeshes = [], mineralMesh = null, mineralNodes = [], mineralsCollected = 0;
     let trackedMineral = null, resourceHudTimer = 0, cloudMesh = null, mineralMarker = null, weatherMesh = null;
+    let oreMesh = null, oreNodes = [], oresCollected = 0, caveRoot = null, caveNormal = null, caveMode = false;
+    let roverRoot = null, roverNormal = null, drivingRover = false, oxygen = 100, oxygenToastClock = 0;
     let moonRig = null;
     let running = false, initializing = false, traveling = false, startupRequiresReload = false, lastTime = 0, elapsed = 0;
     let verticalVelocity = 0, onGround = true;
@@ -423,7 +436,13 @@
     const collectButton = document.getElementById('collect');
     const resourceHint = document.getElementById('resource-hint');
     const mineralCount = document.getElementById('mineral-count');
+    const oreCountLabel = document.getElementById('ore-count');
     const missionLabel = document.getElementById('mission');
+    const oxygenFill = document.getElementById('oxygen-fill');
+    const oxygenValue = document.getElementById('oxygen-value');
+    const mineButton = document.getElementById('mine');
+    const caveButton = document.getElementById('cave');
+    const vehicleButton = document.getElementById('vehicle');
     const joystick = document.getElementById('joystick');
     const stick = document.getElementById('stick');
     const jumpButton = document.getElementById('jump');
@@ -614,6 +633,19 @@
           if (mesh.material) mesh.material.dispose();
         }
       }
+      if (caveRoot) {
+        scene.remove(caveRoot);
+        caveRoot.traverse(node => {
+          if (node.geometry) node.geometry.dispose();
+          if (node.material) {
+            if (Array.isArray(node.material)) node.material.forEach(m => m.dispose());
+            else node.material.dispose();
+          }
+        });
+      }
+      if (roverRoot) { scene.remove(roverRoot); roverRoot = null; }
+      caveRoot = null; caveNormal = null; roverNormal = null; caveMode = false; drivingRover = false;
+      oreMesh = null; oreNodes = [];
       planetSurface = oceanMesh = atmosphereMesh = mineralMesh = null;
       terrainVertexData = null; terrainGridWidth = terrainGridHeight = 0;
       resourceMeshes = [];
@@ -851,6 +883,67 @@
         }
       }
 
+      // Mineral-bearing boulders are separate targets: three tool strikes break one open.
+      const oreTarget = LOW_END_DEVICE ? 18 : 30;
+      const oreMaterial = new THREE.MeshStandardMaterial({
+        color: 0x4d555d, roughness: 0.94, metalness: 0.18,
+        emissive: 0x6b4d24, emissiveIntensity: 0.16
+      });
+      const ores = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 1), oreMaterial, oreTarget);
+      let oresAdded = 0;
+      for (let attempt = 0; attempt < oreTarget * 12 && oresAdded < oreTarget; attempt++) {
+        const sample = sampleDryLand(180, 4200);
+        if (!sample) continue;
+        const size = 3.2 + random() * 3.8;
+        placeRadialInstance(ores, oresAdded, sample.normal, sample.height, size * 0.52,
+          [size * 1.25, size * 0.88, size], random() * Math.PI * 2, dummy, up);
+        oreNodes.push({ normal: sample.normal.clone(), instance: oresAdded, hits: 3, collected: false });
+        oresAdded++;
+      }
+      ores.count = oresAdded;
+      oreMesh = ores;
+
+      // A walk-in cave portal with a visible arch, a dark chamber and glowing mineral seams.
+      const caveSample = sampleDryLand(360, 760);
+      if (caveSample) {
+        caveNormal = caveSample.normal.clone();
+        caveRoot = new THREE.Group();
+        const toLanding = surfaceNormal.clone().addScaledVector(caveNormal, -surfaceNormal.dot(caveNormal)).normalize();
+        const caveForward = toLanding.lengthSq() > 0.001 ? toLanding.negate() : localFrame.north.clone();
+        const caveRight = new THREE.Vector3().crossVectors(caveNormal, caveForward).normalize();
+        caveRoot.position.copy(surfacePoint(caveNormal, 1.5));
+        caveRoot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(caveRight, caveNormal, caveForward));
+        const caveRock = new THREE.MeshStandardMaterial({ color: 0x303b45, roughness: 1 });
+        const caveDark = new THREE.MeshBasicMaterial({ color: 0x05090e, side: THREE.DoubleSide });
+        const caveGlow = new THREE.MeshStandardMaterial({ color: 0x6ee3dc, emissive: 0x187f85, emissiveIntensity: 1.45, roughness: 0.25 });
+        const arch = new THREE.Mesh(new THREE.TorusGeometry(15, 3.2, 9, 28), caveRock);
+        arch.position.set(0, 15, 0);
+        caveRoot.add(arch);
+        const mouth = new THREE.Mesh(new THREE.CircleGeometry(12.4, 32), caveDark);
+        mouth.position.set(0, 15, 0.35);
+        caveRoot.add(mouth);
+        const chamber = new THREE.Mesh(
+          new THREE.SphereGeometry(1, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.5),
+          new THREE.MeshStandardMaterial({ color: 0x202b36, roughness: 1, side: THREE.BackSide })
+        );
+        chamber.position.set(0, 0, 43);
+        chamber.scale.set(25, 25, 58);
+        caveRoot.add(chamber);
+        for (let i = 0; i < 7; i++) {
+          const x = (random() - 0.5) * 34;
+          const z = 20 + random() * 52;
+          const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(1.8 + random() * 2.2, 0), caveGlow);
+          crystal.position.set(x, 3 + random() * 7, z);
+          crystal.scale.y = 1.8;
+          caveRoot.add(crystal);
+        }
+        const caveBeacon = new THREE.Mesh(new THREE.ConeGeometry(1.5, 12, 7),
+          new THREE.MeshBasicMaterial({ color: 0xbca8ff, transparent: true, opacity: 0.86 }));
+        caveBeacon.position.set(0, 34, 0);
+        caveRoot.add(caveBeacon);
+        scene.add(caveRoot);
+      }
+
       // A near-field cloud deck follows the explorer, so it remains visible instead of hiding beyond the curved horizon.
       const cloudPuffsPerBank = 6;
       const clouds = new THREE.InstancedMesh(
@@ -918,7 +1011,7 @@
       grassMesh.count = grassAdded;
       rockMesh.count = rocksAdded;
       crystals.count = mineralsAdded;
-      for (const mesh of [trunkMesh, lowerCrown, upperCrown, grassMesh, rockMesh, crystals, clouds]) {
+      for (const mesh of [trunkMesh, lowerCrown, upperCrown, grassMesh, rockMesh, crystals, ores, clouds]) {
         mesh.instanceMatrix.needsUpdate = true;
         mesh.castShadow = mesh === trunkMesh || mesh === lowerCrown || mesh === rockMesh || mesh === crystals;
         mesh.receiveShadow = mesh !== grassMesh && mesh !== clouds;
@@ -939,9 +1032,51 @@
       collectButton.classList.add('hidden');
       resourceHint.classList.remove('show');
       mineralsCollected = 0;
+      oresCollected = 0;
       mineralCount.textContent = '0';
+      oreCountLabel.textContent = '0';
+      oxygen = 100;
       missionLabel.textContent = 'مهمة الاستكشاف: اجمع 5 بلورات';
       trackedMineral = nearestMineral(4800)?.node || null;
+      mineButton.classList.add('hidden');
+      caveButton.classList.add('hidden');
+      vehicleButton.classList.add('hidden');
+    }
+
+    function nearestOre(maxDistance = 40) {
+      let nearest = null, nearestDistance = Infinity;
+      for (const node of oreNodes) {
+        if (node.collected) continue;
+        const distance = Math.acos(clamp(surfaceNormal.dot(node.normal), -1, 1)) * PLANET_RADIUS;
+        if (distance < nearestDistance) { nearestDistance = distance; nearest = node; }
+      }
+      return nearest && nearestDistance <= maxDistance ? { node: nearest, distance: nearestDistance } : null;
+    }
+
+    function mineNearbyOre() {
+      if (!running || traveling) return;
+      const found = nearestOre(15);
+      if (!found) { showToast('اقترب من صخرة تحتوي على خام للتعدين'); return; }
+      const node = found.node;
+      node.hits--;
+      const dummy = new THREE.Object3D();
+      oreMesh.getMatrixAt(node.instance, dummy.matrix);
+      const pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scale = new THREE.Vector3();
+      dummy.matrix.decompose(pos, quat, scale);
+      if (node.hits <= 0) {
+        node.collected = true;
+        scale.setScalar(0.0001);
+        oresCollected++;
+        oreCountLabel.textContent = String(oresCollected);
+        showToast('استخرجت عينة خام · ' + oresCollected);
+        updateMissionProgress();
+      } else {
+        scale.multiplyScalar(0.82);
+        showToast('ضربة ناجحة — تبقى ' + node.hits + ' ضربات');
+      }
+      dummy.matrix.compose(pos, quat, scale);
+      oreMesh.setMatrixAt(node.instance, dummy.matrix);
+      oreMesh.instanceMatrix.needsUpdate = true;
     }
 
     function nearestMineral(maxDistance = 4800) {
@@ -1004,6 +1139,138 @@
       showToast('تم تحديد أقرب بلورة على بعد ' + Math.round(found.distance) + ' متراً');
     }
 
+    function updateMissionProgress() {
+      if (mineralsCollected >= 5 && oresCollected >= 3 && caveMode) {
+        missionLabel.textContent = 'اكتملت المهمة الكبرى — مستكشف محترف';
+        showToast('اكتملت مهمة الكوكب الكبرى!');
+      } else if (mineralsCollected >= 5 && oresCollected >= 3) {
+        missionLabel.textContent = 'الهدف الأخير: ادخل الكهف';
+      } else if (mineralsCollected >= 5) {
+        missionLabel.textContent = 'الهدف التالي: استخرج 3 عينات خام ' + oresCollected + '/3';
+      } else {
+        missionLabel.textContent = 'مهمة الاستكشاف: اجمع 5 بلورات ' + mineralsCollected + '/5';
+      }
+    }
+
+    function toggleCave() {
+      if (!caveRoot || !caveNormal) { showToast('لم يُعثر على كهف في هذا العالم'); return; }
+      if (caveMode) {
+        caveMode = false;
+        if (cloudMesh) cloudMesh.visible = true;
+        if (moonRig) moonRig.visible = true;
+        scene.fog = new THREE.Fog(activePlanet.biome.fog, 260, 4300);
+        caveButton.querySelector('small').textContent = 'كهف';
+        showToast('خرجت إلى سطح الكوكب');
+        updateMissionProgress();
+        return;
+      }
+      const distance = Math.acos(clamp(surfaceNormal.dot(caveNormal), -1, 1)) * PLANET_RADIUS;
+      if (distance > 18) { showToast('اقترب من مدخل الكهف أولاً'); return; }
+      caveMode = true;
+      if (cloudMesh) cloudMesh.visible = false;
+      if (moonRig) moonRig.visible = false;
+      scene.fog = new THREE.Fog(0x111923, 22, 260);
+      caveButton.querySelector('small').textContent = 'خروج';
+      showToast('دخلت الكهف — انتبه لمخزون الأكسجين');
+      updateMissionProgress();
+    }
+
+    function createRover() {
+      if (roverRoot) scene.remove(roverRoot);
+      const frame = surfaceFrame(surfaceNormal);
+      const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
+      const behind = forward.clone().negate();
+      roverNormal = surfaceNormal.clone().multiplyScalar(Math.cos(10 / PLANET_RADIUS))
+        .addScaledVector(behind, Math.sin(10 / PLANET_RADIUS)).normalize();
+      const roverRight = new THREE.Vector3().crossVectors(roverNormal, behind).normalize();
+      const roverForward = new THREE.Vector3().crossVectors(roverRight, roverNormal).normalize();
+      roverRoot = new THREE.Group();
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x647984, metalness: 0.55, roughness: 0.45 });
+      const darkMat = new THREE.MeshStandardMaterial({ color: 0x18242d, metalness: 0.35, roughness: 0.78 });
+      const lightMat = new THREE.MeshStandardMaterial({ color: 0xb9f5f1, emissive: 0x3aaab2, emissiveIntensity: 1.4 });
+      const chassis = new THREE.Mesh(new THREE.BoxGeometry(4.8, 1.15, 6.2), bodyMat);
+      chassis.position.y = 2.0; roverRoot.add(chassis);
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(3.3, 1.25, 2.8),
+        new THREE.MeshStandardMaterial({ color: 0x274553, metalness: 0.4, roughness: 0.28 }));
+      cabin.position.set(0, 3.0, -0.25); roverRoot.add(cabin);
+      for (const x of [-2.35, 2.35]) for (const z of [-2.0, 2.0]) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.65, 12), darkMat);
+        wheel.rotation.z = Math.PI / 2; wheel.position.set(x, 0.95, z); roverRoot.add(wheel);
+      }
+      for (const x of [-1.55, 1.55]) {
+        const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 8), lightMat);
+        lamp.position.set(x, 2.15, 3.0); roverRoot.add(lamp);
+      }
+      const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 6), darkMat);
+      antenna.position.set(1.5, 4.0, -1.8); roverRoot.add(antenna);
+      roverRoot.position.copy(surfacePoint(roverNormal, 0.6));
+      roverRoot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(roverRight, roverNormal, roverForward));
+      scene.add(roverRoot);
+      roverRoot.visible = true;
+    }
+
+    function toggleVehicle() {
+      if (drivingRover) {
+        drivingRover = false;
+        player.visible = true;
+        roverRoot.visible = true;
+        const frame = surfaceFrame(surfaceNormal);
+        const forward = frame.north.clone().multiplyScalar(Math.cos(cameraYaw)).addScaledVector(frame.east, Math.sin(cameraYaw)).normalize();
+        const behind = forward.clone().negate();
+        roverNormal = surfaceNormal.clone().multiplyScalar(Math.cos(7 / PLANET_RADIUS))
+          .addScaledVector(behind, Math.sin(7 / PLANET_RADIUS)).normalize();
+        showToast('ترجلت من العربة');
+        vehicleButton.querySelector('small').textContent = 'قيادة';
+        return;
+      }
+      if (!roverRoot || !roverNormal) return;
+      const distance = Math.acos(clamp(surfaceNormal.dot(roverNormal), -1, 1)) * PLANET_RADIUS;
+      if (distance > 24) { showToast('اقترب من العربة أولاً'); return; }
+      drivingRover = true;
+      player.visible = false;
+      roverRoot.visible = true;
+      vehicleButton.querySelector('small').textContent = 'ترجل';
+      showToast('أنت تقود العربة — العصا للحركة والركض للتسارع');
+    }
+
+    function updateInteractables() {
+      const ore = nearestOre(15);
+      mineButton.classList.toggle('hidden', !ore);
+      if (caveMode) {
+        caveButton.classList.remove('hidden');
+        caveButton.querySelector('small').textContent = 'خروج';
+      } else if (caveNormal) {
+        const distance = Math.acos(clamp(surfaceNormal.dot(caveNormal), -1, 1)) * PLANET_RADIUS;
+        caveButton.classList.toggle('hidden', distance > 18);
+        caveButton.querySelector('small').textContent = 'كهف';
+      } else caveButton.classList.add('hidden');
+      if (drivingRover) {
+        vehicleButton.classList.remove('hidden');
+        vehicleButton.querySelector('small').textContent = 'ترجل';
+      } else if (roverNormal) {
+        const distance = Math.acos(clamp(surfaceNormal.dot(roverNormal), -1, 1)) * PLANET_RADIUS;
+        vehicleButton.classList.toggle('hidden', distance > 24);
+        vehicleButton.querySelector('small').textContent = 'قيادة';
+      } else vehicleButton.classList.add('hidden');
+    }
+
+    function updateSurvival(dt) {
+      const lowAir = activePlanet.atmosphere < 0.26;
+      const drain = caveMode ? 2.8 : (lowAir ? 0.28 : 0);
+      oxygen = clamp(oxygen - drain * dt + ((!caveMode && !lowAir) ? 5.5 * dt : 0), 0, 100);
+      oxygenFill.style.width = oxygen.toFixed(1) + '%';
+      oxygenValue.textContent = Math.round(oxygen) + '%';
+      if (oxygen <= 0) {
+        oxygenToastClock += dt;
+        if (oxygenToastClock > 7) {
+          oxygenToastClock = 0;
+          showToast('الأكسجين منخفض — اخرج من الكهف أو ابحث عن جو مناسب');
+        }
+        smoothedMove.x *= 0.992;
+        smoothedMove.y *= 0.992;
+      }
+    }
+
     function collectTrackedMineral() {
       if (!running || traveling) return;
       if (!trackedMineral || trackedMineral.collected) {
@@ -1029,13 +1296,8 @@
       collectButton.classList.add('hidden');
       resourceHint.textContent = 'تم جمع البلورة بنجاح';
       resourceHint.classList.add('show');
-      if (mineralsCollected >= 5) {
-        missionLabel.textContent = 'اكتملت المهمة — تم مسح المنطقة';
-        showToast('ممتاز! اكتملت مهمة جمع العينات الخمس');
-      } else {
-        missionLabel.textContent = 'مهمة الاستكشاف: ' + mineralsCollected + '/5 بلورات';
-        showToast('أُضيفت بلورة إلى المخزون · ' + mineralsCollected + '/5');
-      }
+      updateMissionProgress();
+      showToast('أُضيفت بلورة إلى المخزون · ' + mineralsCollected + '/5');
     }
 
     function addPart(parent, geometry, material, position, scale) {
@@ -1141,6 +1403,7 @@
       await createPlanetResources();
       applyPlanetEnvironment();
       createAstronaut();
+      createRover();
       camera.position.set(player.position.x + 7, player.position.y + 8, player.position.z + 12);
       updateCamera(1);
       window.addEventListener('resize', onResize, { passive: true });
@@ -1167,6 +1430,9 @@
         if (e.code === 'Space' && running) jump();
         if (e.key.toLowerCase() === 'e' && running) scanForMineral();
         if (e.key.toLowerCase() === 'f' && running) collectTrackedMineral();
+        if (e.key.toLowerCase() === 'g' && running) mineNearbyOre();
+        if (e.key.toLowerCase() === 'c' && running) toggleCave();
+        if (e.key.toLowerCase() === 'v' && running) toggleVehicle();
       }, { passive: false });
       window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
       window.addEventListener('blur', () => {
@@ -1253,6 +1519,9 @@
       jumpButton.addEventListener('pointerdown', e => { e.preventDefault(); if (running) jump(); });
       scanButton.addEventListener('pointerdown', e => { e.preventDefault(); scanForMineral(); });
       collectButton.addEventListener('pointerdown', e => { e.preventDefault(); collectTrackedMineral(); });
+      mineButton.addEventListener('pointerdown', e => { e.preventDefault(); mineNearbyOre(); });
+      caveButton.addEventListener('pointerdown', e => { e.preventDefault(); toggleCave(); });
+      vehicleButton.addEventListener('pointerdown', e => { e.preventDefault(); toggleVehicle(); });
       sprintButton.addEventListener('pointerdown', e => {
         e.preventDefault(); sprintHeld = true; sprintButton.classList.add('held');
         sprintButton.setPointerCapture(e.pointerId);
@@ -1327,7 +1596,7 @@
       const right = new THREE.Vector3().crossVectors(forward, surfaceNormal).normalize();
       const direction = forward.clone().multiplyScalar(smoothedMove.y).addScaledVector(right, smoothedMove.x);
       const sprinting = sprintHeld || keys.has('shift');
-      const speed = PLAYER_SPEED * (sprinting ? 1.9 : 1);
+      const speed = (drivingRover ? 34 : PLAYER_SPEED) * (sprinting ? 1.9 : 1);
       const distance = speed * moveAmount * dt * (onGround ? 1 : 0.72);
       if (moveAmount > 0.025 && distance > 0) {
         direction.normalize();
@@ -1342,15 +1611,20 @@
       if (verticalOffset <= 0) { verticalOffset = 0; verticalVelocity = 0; onGround = true; }
       else onGround = false;
       player.position.copy(surfacePoint(surfaceNormal, verticalOffset));
-      const walk = moveAmount > .035 && onGround ? Math.sin(elapsed * (sprinting ? 14 : 10.5)) * .58 * moveAmount : 0;
+      if (drivingRover && roverRoot) {
+        roverRoot.position.copy(player.position);
+        roverRoot.quaternion.copy(player.quaternion);
+      }
+      const walk = moveAmount > .035 && onGround && !drivingRover ? Math.sin(elapsed * (sprinting ? 14 : 10.5)) * .58 * moveAmount : 0;
       leftLeg.rotation.x = walk; rightLeg.rotation.x = -walk;
       leftArm.rotation.x = -walk * .72; rightArm.rotation.x = walk * .72;
       if (!onGround) {
         leftLeg.rotation.x = .28; rightLeg.rotation.x = -.18;
         leftArm.rotation.x = -.35; rightArm.rotation.x = -.35;
       }
-      status.textContent = !onGround ? 'تقفز فوق السطح…' :
-        (moveAmount > .04 ? (sprinting ? 'تركض لاستكشاف العالم…' : 'تستكشف سطح الكوكب…') : 'استكشف العالم الكروي من حولك');
+      status.textContent = caveMode ? 'داخل الكهف · راقب الأكسجين' : (drivingRover ? 'تقود العربة الاستكشافية' :
+        (!onGround ? 'تقفز فوق السطح…' :
+        (moveAmount > .04 ? (sprinting ? 'تركض لاستكشاف العالم…' : 'تستكشف سطح الكوكب…') : 'استكشف العالم الكروي من حولك')));
     }
 
     function updateCamera(dt) {
@@ -1422,6 +1696,8 @@
       updatePlayer(dt);
       updateCamera(dt);
       updateResourceHint();
+      updateInteractables();
+      updateSurvival(dt);
       updateWeather(dt);
       if (cloudMesh) cloudMesh.rotation.y += dt * 0.00011;
       if (moonRig) moonRig.rotation.z += dt * 0.0008;
@@ -1469,6 +1745,9 @@
         verticalVelocity = 0;
         onGround = true;
         player.position.copy(surfacePoint(surfaceNormal));
+        player.visible = true;
+        caveMode = false; drivingRover = false;
+        createRover();
         cameraYaw = cameraYawTarget = spawnYaw;
         cameraPitch = cameraPitchTarget = -0.22;
         cameraDistance = cameraDistanceTarget = 18;
